@@ -1,5 +1,6 @@
 include("Beam1D.jl")
 import Plots
+using DataStructures
 
 # parameters:
 E = 1
@@ -19,6 +20,8 @@ M_L = 0
 Q_L = 0
 
 # TODO: Should be exactly 4 "nothings" in our BCs
+nothing_count = counter([x_0, xprime_0, M_0, Q_0, x_L, xprime_L, M_L, Q_L])[nothing]
+nothing_count == 4 ? nothing : throw(AssertionError("Must have exactly 4 BCs"))
 
 BoundaryConditions = Beam1D.BoundaryConditions(
   x_0, xprime_0, M_0, Q_0,
