@@ -88,16 +88,12 @@ module Beam1D
 
 		# S embeds boundary conditions in an 8xN block at the bottom of the matrix.
 		# First four rows are for x and x' BCs.
-		
-		
-		
-		
-
 
 		h_0 = x[2]-x[1]
 		h_L = x[end]-x[end-1]
 
 		# TODO: Clean up this horrible mess.
+
 		if par.BCs.x_0 != nothing
 			S[N_u + 1, 1		] = 1
 			f[N_u + 1] = par.BCs.x_0
