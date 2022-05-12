@@ -27,27 +27,6 @@ module Beam1D
 		f::Vector{Float64}
 	end
 
-	# Simply solve u_1, u_2 (u3, u4?) from a given M_0
-	function BCs_from_Moments(M_0, M_L, par::Parameters, sys::System)
-		S_loc(h) = [ 6/h/h  3/h   -6/h/h  3/h;
-		             3/h    2     -3/h    1  ;
-		            -6/h/h -3/h    6/h/h -3/h;
-		             3/h    1     -3/h    2  ]*2/h
-
-		# TODO: E, I evaluated at a point.
-		f = sys.f
-		f[2] = -M_0 / par.E / par.I
-		# f[1] = 
-		f[end] = M_L / par.E / par.I
-		# f[end - 1] = 
-
-		u = sys.S\sys.f
-
-		return u
-	end
-
-
-
 	function solve_st(sys::System) #Stationary solver
 		u = sys.S\sys.f
 		return x -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
@@ -71,10 +50,11 @@ module Beam1D
 		N_v = length(x) #Number of vertices
 		N_e = N_v-1     #Number of elements
 		N_u = N_v*2     #Number of unknowns
+		N_bc = 8				#Number of (possible) Boundary Conditions
 
 		#Global System
-		f = zeros(Float64,N_u + 8)
-		S = SparseArrays.spzeros(Float64,N_u + 8,N_u)
+		f = zeros(Float64,N_u + N_bc)
+		S = SparseArrays.spzeros(Float64,N_u + N_bc,N_u)
 
 		#Element contributions
 		for k in 1:N_e
