@@ -17,13 +17,15 @@ module Beam1D
 		E::Function
 		I::Function
 		q::Function
+		μ::Function
 		BCs::BoundaryConditions
 	end
 
-	struct System
+	Base.@kwdef struct System
 		par::Parameters
 		x::Vector{Float64}
 		S::SparseArrays.SparseMatrixCSC{Float64,Int64}
+		M::SparseArrays.SparseMatrixCSC{Float64,Int64} = nothing
 		f::Vector{Float64}
 	end
 
@@ -55,20 +57,30 @@ module Beam1D
 		i_loc    = [ 1,     2,     3,     4  ]
 
 		# Non-constant load
-		phi0(h) = [ 12/h^3	 8/h^2	-12/h^3	 4/h^2
+		phi0_S(h) = [ 12/h^3	 8/h^2	-12/h^3	 4/h^2
 					8/h^2	 16/3/h	-8/h^2	 8/3/h
 				   -12/h^3	-8/h^2	 12/h^3	-4/h^2
 					4/h^2	 8/3/h	-4/h^2	 4/3/h]
 
-		phih2(h) = [0	 0		 0		 0
+		phih2_S(h) = [0	 0		 0		 0
 					0	 4/3/h	 0		-4/3/h
 					0	 0		 0		 0
 					0	-4/3/h	 0		 4/3/h]
 
-		phih(h) = [ 12/h^3	 4/h^2	-12/h^3	 8/h^2
+		phih_S(h) = [ 12/h^3	 4/h^2	-12/h^3	 8/h^2
 					4/h^2	 4/3/h	-4/h^2	 8/3/h
 	   			    -12/h^3	-4/h^2	 12/h^3	-8/h^2
 					8/h^2	 8/3/h	-8/h^2	 16/3/h]
+
+		phih3_M(h) = [49		14h		140		-28h
+					14h		4h^2	40h			-8h^2
+					140		40h		400			-80h
+					-28h	-8h^2	-80h	16h^2]/729
+
+		phi2h3_M(h) = [49		14h		140		-28h
+					14h		4h^2	40h			-8h^2
+					140		40h		400			-80h
+					-28h	-8h^2	-80h	16h^2]/729
 
 		phi(h) = [h/3	 2h/3	 0
 				  0		 h^2/6	 0
@@ -76,8 +88,9 @@ module Beam1D
 				  0		-h^2/6	 0]
 
 		# Simpsons rule
-		S_loc(h,EI) = h/3 * (phi0(h)*EI[1] + phih2(h)*EI[2] + phih(h)*EI[3])
+		S_loc(h,EI) = h/3 * (phi0_S(h)*EI[1] + phih2_S(h)*EI[2] + phih_S(h)*EI[3])
 		f_loc(h,q) = h/3 * (phi(h)*q)
+		M_loc(h,μ) = 9h/8 * (phih3_M(h/3)*μ[1] + phi2h3_M(2h/3)*μ[2])
 
 		#Global Variables
 		N_v = length(x) # Number of vertices
@@ -89,6 +102,11 @@ module Beam1D
 		#Global System
 		f = zeros(Float64,N_u + N_bc)
 		S = SparseArrays.spzeros(Float64,N_u + N_bc,N_u)
+		
+		non_zero_μ = (par.μ.(x) == zeros(length(x))) ? false : true
+		if non_zero_μ
+			M = SparseArrays.spzeros(Float64,N_u + N_bc,N_u)
+		end
 
 		#Element contributions
 		for k in 1:N_e
@@ -98,10 +116,16 @@ module Beam1D
 			x_loc = [x[k]; (x[k]+x[k+1])/2; x[k+1]]
 			EI    = par.E.(x_loc).*par.I.(x_loc)
 			q     = par.q.(x_loc)
-
+			
 			# Non-constant load
 			S[i,i] += S_loc(h, EI)
 			f[i]   += f_loc(h, q)
+
+			if non_zero_μ
+				x_locM 	= [(2x[k]+x[k+1])/3; (x[k]+2x[k+1])/3]
+				μ	  	= par.μ.(x_locM)
+				M[i,i] += M_loc(h, μ)
+			end
 		end
 
 		#Boundary Conditions
@@ -158,6 +182,10 @@ module Beam1D
 		end
 		
 		#Packaging
-		return System(par,x,S,f)
+		if non_zero_μ
+			return System(par=par,x=x,S=S,f=f,M=M)
+		else
+			return System(par=par,x=x,S=S,f=f)
+		end
 	end
 end
