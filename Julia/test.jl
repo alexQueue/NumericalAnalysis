@@ -22,6 +22,10 @@ BoundaryConditions = Beam1D.BoundaryConditions(
   x_L, xprime_L, M_L, Q_L
 )
 
+# BC using dictionary instead
+BC = Dict("x_0"=>1,"xprime_0"=>0,"x_L"=>1,"Q_L"=>1)
+BoundaryConditions = Beam1D.make_BC_from_dict(BC)
+
 x_grid = collect(0:0.01:1)
 q(x) = -(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
 E(x) = x^2+1

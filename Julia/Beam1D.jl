@@ -27,6 +27,19 @@ module Beam1D
 		f::Vector{Float64}
 	end
 
+	"""
+	Makes an object of BoundaryConditions struct from a dictionary
+	of the boundary values
+	"""
+	function make_BC_from_dict(bc_dict)
+		BC_array = Array{Union{Float64, Nothing}}(undef, 8)
+		fields = string.(fieldnames(BoundaryConditions))
+		for (field,i) ∈ zip(fields, 1:length(fields))
+			BC_array[i] = haskey(bc_dict, field) ? bc_dict[field] : nothing
+		end
+		BoundaryConditions(BC_array...)
+	end
+
 	function solve_st(sys::System) #Stationary solver
 		u = sys.S\sys.f
 		return x -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
