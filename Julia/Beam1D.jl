@@ -14,9 +14,9 @@ module Beam1D
 	end
 
 	mutable struct Parameters
-		E::Float64
-		I::Float64
-		q::Float64
+		E::Function
+		I::Function
+		q::Function
 		BCs::BoundaryConditions
 	end
 
@@ -40,17 +40,38 @@ module Beam1D
 	function build(x::Vector{Float64},par::Parameters)
 		#Local System
 		i_loc    = [ 1,     2,     3,     4  ]
-		S_loc(h) = [ 6/h/h  3/h   -6/h/h  3/h;
-		             3/h    2     -3/h    1  ;
-		            -6/h/h -3/h    6/h/h -3/h;
-		             3/h    1     -3/h    2  ]*2/h*par.E*par.I
-		f_loc(h) = [ 1,     h/6,   1,    -h/6]*h/2*par.q
+
+		# Non-constant load
+		phi0(h) = [ 12/h^3	 8/h^2	-12/h^3	 4/h^2
+					8/h^2	 16/3/h	-8/h^2	 8/3/h
+				   -12/h^3	-8/h^2	 12/h^3	-4/h^2
+					4/h^2	 8/3/h	-4/h^2	 4/3/h]
+
+		phih2(h) = [0	 0		 0		 0
+					0	 4/3/h	 0		-4/3/h
+					0	 0		 0		 0
+					0	-4/3/h	 0		 4/3/h]
+
+		phih(h) = [ 12/h^3	 4/h^2	-12/h^3	 8/h^2
+					4/h^2	 4/3/h	-4/h^2	 8/3/h
+	   			    -12/h^3	-4/h^2	 12/h^3	-8/h^2
+					8/h^2	 8/3/h	-8/h^2	 16/3/h]
+
+		phi(h) = [h/3	 2h/3	 0
+				  0		 h^2/6	 0
+				  0		 2h/3	 h/3
+				  0		-h^2/6	 0]
+
+		# Simpsons rule
+		S_loc(h,EI) = h/3 * (phi0(h)*EI[1] + phih2(h)*EI[2] + phih(h)*EI[3])
+		f_loc(h,q) = h/3 * (phi(h)*q)
 
 		#Global Variables
-		N_v = length(x) #Number of vertices
-		N_e = N_v-1     #Number of elements
-		N_u = N_v*2     #Number of unknowns
+		N_v = length(x) # Number of vertices
+		N_e = N_v-1     # Number of elements
+		N_u = N_v*2     # Number of unknowns
 		N_bc = 8				#Number of (possible) Boundary Conditions
+		L = x[end]
 
 		#Global System
 		f = zeros(Float64,N_u + N_bc)
@@ -58,10 +79,16 @@ module Beam1D
 
 		#Element contributions
 		for k in 1:N_e
-			h       = x[k+1]-x[k]
-			i       = i_loc.+2*(k-1)
-			S[i,i] += S_loc(h)
-			f[i]   += f_loc(h)
+			h     = x[k+1]-x[k]
+			i     = i_loc.+2*(k-1)
+			
+			x_loc = [x[k]; (x[k]+x[k+1])/2; x[k+1]]
+			EI    = par.E.(x_loc).*par.I.(x_loc)
+			q     = par.q.(x_loc)
+
+			# Non-constant load
+			S[i,i] += S_loc(h, EI)
+			f[i]   += f_loc(h, q)
 		end
 
 		#Boundary Conditions
@@ -93,21 +120,21 @@ module Beam1D
 
 		if par.BCs.Q_0 != nothing
 			S[N_u + 5, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * 0 # TODO: Not 0 but (E' * I + E * I')
-			S[N_u + 5, 1:4] += [12/h_0^3	 6/h_0^2	-12/h_0^3	 6/h_0^2] * par.E * par.I
+			S[N_u + 5, 1:4] += [12/h_0^3	 6/h_0^2	-12/h_0^3	 6/h_0^2] * par.E(0) * par.I(0)
 			f[N_u + 5] = -par.BCs.Q_0 
 		end
 		if par.BCs.M_0 != nothing
-			S[N_u + 6, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * par.E * par.I
+			S[N_u + 6, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * par.E(0) * par.I(0)
 			f[N_u + 6] = -par.BCs.M_0 
 		end
 		
 		if par.BCs.Q_L != nothing
 			S[N_u + 7, end-3:end] = [6/h_L^2,	 4/h_L,	-6/h_L^2,	 2/h_L] * 2/h_L * 0 # TODO: Not 0 but (E' * I + E * I')
-			S[N_u + 7, end-3:end] += [12/h_L^3,	 6/h_L^2,	-12/h_L^3,	 6/h_L^2] * par.E * par.I
+			S[N_u + 7, end-3:end] += [12/h_L^3,	 6/h_L^2,	-12/h_L^3,	 6/h_L^2] * par.E(L) * par.I(L)
 			f[N_u + 7] = -par.BCs.Q_L 
 		end
 		if par.BCs.M_L != nothing
-			S[N_u + 8, end-3:end] = [6/h_L^2	 2/h_L	-6/h_L^2	 4/h_L] * 2/h_L * par.E * par.I
+			S[N_u + 8, end-3:end] = [6/h_L^2	 2/h_L	-6/h_L^2	 4/h_L] * 2/h_L * par.E(L) * par.I(L)
 			f[N_u + 8] = par.BCs.M_L 
 		end
 		

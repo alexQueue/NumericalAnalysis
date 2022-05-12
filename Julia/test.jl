@@ -2,12 +2,6 @@ include("Beam1D.jl")
 import Plots
 using DataStructures
 
-# parameters:
-E = 1
-I = 1
-q = -1
-x_values = [0,0.2,1]
-
 x_0 = 1
 xprime_0 = 0
 M_0 = nothing
@@ -28,8 +22,19 @@ BoundaryConditions = Beam1D.BoundaryConditions(
   x_L, xprime_L, M_L, Q_L
 )
 
-par = Beam1D.Parameters(E, I, q, BoundaryConditions)
-sys = Beam1D.build(x_values,par)
+x_grid = collect(0:0.01:1)
+q = function(x)
+    if 0.4 ≤ x ≤ 0.41
+        -1
+    elseif 0.89 ≤ x ≤ 0.9
+        -1
+    else
+        0
+    end
+end
+
+par = Beam1D.Parameters(x->1,x->1,q,BoundaryConditions)
+sys = Beam1D.build(x_grid,par)
 sol = Beam1D.solve_st(sys)
 
 Plots.plot(sol)
