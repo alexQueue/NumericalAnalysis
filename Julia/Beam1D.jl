@@ -114,24 +114,24 @@ module Beam1D
 
 		# TODO: Clean up this horrible mess.
 
-		if par.BCs.x_0 != nothing
+		if par.BCs.x_0 !== nothing
 			S[N_u + 1, 1		] = 1
 			f[N_u + 1] = par.BCs.x_0
 		end
-		if par.BCs.xprime_0 != nothing
+		if par.BCs.xprime_0 !== nothing
 			S[N_u + 2, 2		] = 1
 			f[N_u + 2] = par.BCs.xprime_0
 		end
-		if par.BCs.x_L != nothing
+		if par.BCs.x_L !== nothing
 			S[N_u + 3, end-1] = 1
 			f[N_u + 3] = par.BCs.x_L
 		end
-		if par.BCs.xprime_L != nothing
+		if par.BCs.xprime_L !== nothing
 			S[N_u + 4, end	] = 1
 			f[N_u + 4] = par.BCs.xprime_L
 		end
 
-		if par.BCs.Q_0 != nothing
+		if par.BCs.Q_0 !== nothing
 			Iprime = ForwardDiff.derivative(par.I, 0)
 			Eprime = ForwardDiff.derivative(par.E, 0)
 			derivative_factor = Eprime * par.I(0) + par.E(0) * Iprime
@@ -139,12 +139,12 @@ module Beam1D
 			S[N_u + 5, 1:4] += [12/h_0^3	 6/h_0^2	-12/h_0^3	 6/h_0^2] * par.E(0) * par.I(0)
 			f[N_u + 5] = -par.BCs.Q_0 
 		end
-		if par.BCs.M_0 != nothing
+		if par.BCs.M_0 !== nothing
 			S[N_u + 6, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * par.E(0) * par.I(0)
 			f[N_u + 6] = -par.BCs.M_0 
 		end
 		
-		if par.BCs.Q_L != nothing
+		if par.BCs.Q_L !== nothing
 			Iprime = ForwardDiff.derivative(par.I, L)
 			Eprime = ForwardDiff.derivative(par.E, L)
 			derivative_factor = Eprime * par.I(L) + par.E(L) * Iprime
@@ -152,7 +152,7 @@ module Beam1D
 			S[N_u + 7, end-3:end] += [12/h_L^3,	 6/h_L^2,	-12/h_L^3,	 6/h_L^2] * par.E(L) * par.I(L)
 			f[N_u + 7] = -par.BCs.Q_L 
 		end
-		if par.BCs.M_L != nothing
+		if par.BCs.M_L !== nothing
 			S[N_u + 8, end-3:end] = [6/h_L^2	 2/h_L	-6/h_L^2	 4/h_L] * 2/h_L * par.E(L) * par.I(L)
 			f[N_u + 8] = par.BCs.M_L 
 		end
