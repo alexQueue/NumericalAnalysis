@@ -7,10 +7,10 @@ xprime_0 = 0
 M_0 = nothing
 Q_0 = nothing
 
-x_L = nothing
+x_L = 1
 xprime_L = nothing
-M_L = 0
-Q_L = 0
+M_L = nothing
+Q_L = 1
 
 
 # Parameter validations
@@ -23,17 +23,11 @@ BoundaryConditions = Beam1D.BoundaryConditions(
 )
 
 x_grid = collect(0:0.01:1)
-q = function(x)
-    if 0.4 ≤ x ≤ 0.41
-        -1
-    elseif 0.89 ≤ x ≤ 0.9
-        -1
-    else
-        0
-    end
-end
+q(x) = -(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
+E(x) = x^2+1
+I(x) = x+1
 
-par = Beam1D.Parameters(x->1,x->1,q,BoundaryConditions)
+par = Beam1D.Parameters(E,I,q,BoundaryConditions)
 sys = Beam1D.build(x_grid,par)
 sol = Beam1D.solve_st(sys)
 

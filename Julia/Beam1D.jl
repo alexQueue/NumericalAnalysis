@@ -1,5 +1,5 @@
 module Beam1D
-	import SparseArrays, LinearAlgebra, CubicHermiteSpline
+	import SparseArrays, LinearAlgebra, CubicHermiteSpline, ForwardDiff
 
 	mutable struct BoundaryConditions
 		x_0::Union{Float64, Nothing}
@@ -70,7 +70,7 @@ module Beam1D
 		N_v = length(x) # Number of vertices
 		N_e = N_v-1     # Number of elements
 		N_u = N_v*2     # Number of unknowns
-		N_bc = 8				#Number of (possible) Boundary Conditions
+		N_bc = 8		# Number of (possible) Boundary Conditions
 		L = x[end]
 
 		#Global System
@@ -119,7 +119,10 @@ module Beam1D
 		end
 
 		if par.BCs.Q_0 != nothing
-			S[N_u + 5, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * 0 # TODO: Not 0 but (E' * I + E * I')
+			Iprime = ForwardDiff.derivative(par.I, 0)
+			Eprime = ForwardDiff.derivative(par.E, 0)
+			derivative_factor = Eprime * par.I(0) + par.E(0) * Iprime
+			S[N_u + 5, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * derivative_factor
 			S[N_u + 5, 1:4] += [12/h_0^3	 6/h_0^2	-12/h_0^3	 6/h_0^2] * par.E(0) * par.I(0)
 			f[N_u + 5] = -par.BCs.Q_0 
 		end
@@ -129,7 +132,10 @@ module Beam1D
 		end
 		
 		if par.BCs.Q_L != nothing
-			S[N_u + 7, end-3:end] = [6/h_L^2,	 4/h_L,	-6/h_L^2,	 2/h_L] * 2/h_L * 0 # TODO: Not 0 but (E' * I + E * I')
+			Iprime = ForwardDiff.derivative(par.I, L)
+			Eprime = ForwardDiff.derivative(par.E, L)
+			derivative_factor = Eprime * par.I(L) + par.E(L) * Iprime
+			S[N_u + 7, end-3:end] = [6/h_L^2,	 4/h_L,	-6/h_L^2,	 2/h_L] * 2/h_L * derivative_factor
 			S[N_u + 7, end-3:end] += [12/h_L^3,	 6/h_L^2,	-12/h_L^3,	 6/h_L^2] * par.E(L) * par.I(L)
 			f[N_u + 7] = -par.BCs.Q_L 
 		end
@@ -138,7 +144,6 @@ module Beam1D
 			f[N_u + 8] = par.BCs.M_L 
 		end
 		
-
 		#Packaging
 		return System(par,x,S,f)
 	end
