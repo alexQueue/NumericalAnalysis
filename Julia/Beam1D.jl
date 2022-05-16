@@ -25,6 +25,30 @@ module Beam1D
 		return 0
 	end
 
+	β = 1/4; γ = 1/2
+	"""
+	Newmark methdod for beams with initial conditions
+	IC[1,2,3] = [u₀, u̇₀, ü₀] and M and S being
+	the mass and stiffness matrices and p being the 
+	forcing terms together with the boundary conditions.
+	"""
+	function newmark(IC, t, M, S, p)
+		n = length(t)
+		u = zeros(n); u̇ = zeros(n); ü	= zeros(n);
+		u[1] = IC[1]; u̇[1] = IC[2]; ü[1] = IC[3]
+		for j=1:n-1
+			hⱼ = t[j+1] - t[j]
+			uⱼ_star = u[j] + u̇[j]*hⱼ + (1/2 - β)*ü[j]*hⱼ^2
+			u̇ⱼ_star = u̇[j] + (1 - γ)*ü[j]*hⱼ
+
+
+			ü[j+1] = (M+β*hⱼ^2*S)\p(t[j+1] - S*uⱼ_star)
+			u̇[j+1] = u̇ⱼ_star + γ*ü[j+1]*hⱼ
+			u[j+1] = uⱼ_star + β*ü[j+1]*hⱼ^2
+		end
+		return u
+	end
+
 	function build(x::Vector{Float64},par::Parameters)
 		#Shape functions and second derivatives on [0,h]
 		phi_0(h,p) = [ (p/h)^2*(2*p/h-3)+1;
