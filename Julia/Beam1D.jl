@@ -6,12 +6,15 @@ module Beam1D
 		EI::Function
 		q::Function
 		BCs::Vector{Float64}
+		IC::Matrix{Float64}
+		t::Vector{Float64}
 	end
 
 	struct System
 		par::Parameters
 		x::Vector{Float64}
 		S::SparseArrays.SparseMatrixCSC{Float64,Int64}
+		M::SparseArrays.SparseMatrixCSC{Float64,Int64}
 		f::Vector{Float64}
 	end
 
@@ -21,10 +24,6 @@ module Beam1D
 		    sys.x,u[1:2:end],u[2:2:end])(x)
 	end
 
-	function solve_tr(sys::System) #Transient solver
-		return 0
-	end
-
 	β = 1/4; γ = 1/2
 	"""
 	Newmark methdod for beams with initial conditions
@@ -32,22 +31,29 @@ module Beam1D
 	the mass and stiffness matrices and p being the 
 	forcing terms together with the boundary conditions.
 	"""
-	function newmark(IC, t, M, S, p)
-		n = length(t)
-		u = zeros(n); u̇ = zeros(n); ü	= zeros(n);
-		u[1] = IC[1]; u̇[1] = IC[2]; ü[1] = IC[3]
-		for j=1:n-1
-			hⱼ = t[j+1] - t[j]
-			uⱼ_star = u[j] + u̇[j]*hⱼ + (1/2 - β)*ü[j]*hⱼ^2
-			u̇ⱼ_star = u̇[j] + (1 - γ)*ü[j]*hⱼ
+	function solve_tr(sys::System) #Transient solver
+		nₓ = length(sys.par.IC[:,1])
+		nₜ = length(sys.par.t)
+		
+		q(t) = ones(nₓ)
 
-
-			ü[j+1] = (M+β*hⱼ^2*S)\p(t[j+1] - S*uⱼ_star)
-			u̇[j+1] = u̇ⱼ_star + γ*ü[j+1]*hⱼ
-			u[j+1] = uⱼ_star + β*ü[j+1]*hⱼ^2
+		u = zeros(nₓ,nₜ); u̇ = zeros(nₓ,nₜ); ü	= zeros(nₓ,nₜ);
+		u[:,1] = sys.par.IC[:,1]
+		u̇[:,1] = sys.par.IC[:,2]
+		ü[:,1] = sys.par.IC[:,3]
+		for j=1:nₜ-1
+			hⱼ = sys.par.t[j+1] - sys.par.t[j]
+			uⱼ_star = u[:,j] + u̇[:,j]*hⱼ + (1/2 - β)*ü[:,j]*hⱼ^2
+			u̇ⱼ_star = u̇[:,j] + (1 - γ)*ü[:,j]*hⱼ
+	
+			ü[:,j+1] = (sys.M+β*hⱼ^2*sys.S)\(q(sys.par.t[j+1]) - sys.S*uⱼ_star)
+			u̇[:,j+1] = u̇ⱼ_star + γ*ü[:,j+1]*hⱼ
+			u[:,j+1] = uⱼ_star + β*ü[:,j+1]*hⱼ^2
 		end
-		return u
+		return (x,j) -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
+			sys.x, u[1:2:end,j], u[2:2:end,j])(x)
 	end
+
 
 	function build(x::Vector{Float64},par::Parameters)
 		#Shape functions and second derivatives on [0,h]
@@ -94,9 +100,10 @@ module Beam1D
 		#Boundary Conditions
 		i      = [1,2,N_u-1,N_u] #Boundary indices
 		S[i,:] = SparseArrays.sparse(LinearAlgebra.I,N_u,N_u)[i,:]
+		M[i,:] .= 0 
 		f[i]   = par.BCs
 
 		#Packaging
-		return System(par,x,S,f)
+		return System(par,x,S,M,f)
 	end
 end
