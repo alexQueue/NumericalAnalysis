@@ -72,14 +72,14 @@ module Beam1D
 	   			    -12/h^3	-4/h^2	 12/h^3	-8/h^2
 					8/h^2	 8/3/h	-8/h^2	 16/3/h]
 
-		phih3_M(h) = [49		14h		140		-28h
-					14h		4h^2	40h			-8h^2
-					140		40h		400			-80h
+		phih3_M(h) = [49	14h		140		-28h
+					14h		4h^2	40h		-8h^2
+					140		40h		400		-80h
 					-28h	-8h^2	-80h	16h^2]/729
 
-		phi2h3_M(h) = [49		14h		140		-28h
-					14h		4h^2	40h			-8h^2
-					140		40h		400			-80h
+		phi2h3_M(h) = [49	14h		140		-28h
+					14h		4h^2	40h		-8h^2
+					140		40h		400		-80h
 					-28h	-8h^2	-80h	16h^2]/729
 
 		phi(h) = [h/3	 2h/3	 0
@@ -90,7 +90,7 @@ module Beam1D
 		# Simpsons rule
 		S_loc(h,EI) = h/3 * (phi0_S(h)*EI[1] + phih2_S(h)*EI[2] + phih_S(h)*EI[3])
 		f_loc(h,q) = h/3 * (phi(h)*q)
-		M_loc(h,μ) = 9h/8 * (phih3_M(h/3)*μ[1] + phi2h3_M(2h/3)*μ[2])
+		M_loc(h,μ) = 9h/8 * (phih3_M(h/3)*μ[1] + phi2h3_M(2h/3)*μ[2]) # 3/8 rule
 
 		#Global Variables
 		N_v = length(x) # Number of vertices
