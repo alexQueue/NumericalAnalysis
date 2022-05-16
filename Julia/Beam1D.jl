@@ -50,6 +50,30 @@ module Beam1D
 		return 0
 	end
 
+	# function apply_BCs(sys::System)
+
+	# Applies Dirichlet and Neumann BCs at x=0 and x=L
+	function set_x_BCs(S::SparseArrays.SparseMatrixCSC{Float64,Int64}, f::Vector{Float64}, N_u::Integer, par::Parameters)
+		if par.BCs.x_0 !== nothing
+			S[N_u + 1, 1		] = 1
+			f[N_u + 1] = par.BCs.x_0
+		end
+		if par.BCs.xprime_0 !== nothing
+			S[N_u + 2, 2		] = 1
+			f[N_u + 2] = par.BCs.xprime_0
+		end
+		if par.BCs.x_L !== nothing
+			S[N_u + 3, end-1] = 1
+			f[N_u + 3] = par.BCs.x_L
+		end
+		if par.BCs.xprime_L !== nothing
+			S[N_u + 4, end	] = 1
+			f[N_u + 4] = par.BCs.xprime_L
+		end
+	end
+
+	# function set_Q_M_BCs(S::)
+
 	function build(x::Vector{Float64},par::Parameters)
 		#Local System
 		i_loc    = [ 1,     2,     3,     4  ]
@@ -109,34 +133,13 @@ module Beam1D
 		# S embeds boundary conditions in an 8xN block at the bottom of the matrix.
 		# First four rows are for x and x' BCs.
 
+		set_x_BCs(S, f, N_u, par)
+
 		h_0 = x[2]-x[1]
 		h_L = x[end]-x[end-1]
 
-		# TODO: Clean up this horrible mess.
-
-		if par.BCs.x_0 !== nothing
-			S[N_u + 1, 1		] = 1
-			f[N_u + 1] = par.BCs.x_0
-		end
-		if par.BCs.xprime_0 !== nothing
-			S[N_u + 2, 2		] = 1
-			f[N_u + 2] = par.BCs.xprime_0
-		end
-		if par.BCs.x_L !== nothing
-			S[N_u + 3, end-1] = 1
-			f[N_u + 3] = par.BCs.x_L
-		end
-		if par.BCs.xprime_L !== nothing
-			S[N_u + 4, end	] = 1
-			f[N_u + 4] = par.BCs.xprime_L
-		end
-
 		if par.BCs.Q_0 !== nothing
-			Iprime = ForwardDiff.derivative(par.I, 0)
-			Eprime = ForwardDiff.derivative(par.E, 0)
-			derivative_factor = Eprime * par.I(0) + par.E(0) * Iprime
-			S[N_u + 5, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * derivative_factor
-			S[N_u + 5, 1:4] += [12/h_0^3	 6/h_0^2	-12/h_0^3	 6/h_0^2] * par.E(0) * par.I(0)
+			S[N_u + 5, 1:4] = Q_at_point(0.0, h_0, par)
 			f[N_u + 5] = -par.BCs.Q_0 
 		end
 		if par.BCs.M_0 !== nothing
@@ -145,11 +148,7 @@ module Beam1D
 		end
 		
 		if par.BCs.Q_L !== nothing
-			Iprime = ForwardDiff.derivative(par.I, L)
-			Eprime = ForwardDiff.derivative(par.E, L)
-			derivative_factor = Eprime * par.I(L) + par.E(L) * Iprime
-			S[N_u + 7, end-3:end] = [6/h_L^2,	 4/h_L,	-6/h_L^2,	 2/h_L] * 2/h_L * derivative_factor
-			S[N_u + 7, end-3:end] += [12/h_L^3,	 6/h_L^2,	-12/h_L^3,	 6/h_L^2] * par.E(L) * par.I(L)
+			S[N_u + 7, end-3:end] = Q_at_point(L, h_L, par)
 			f[N_u + 7] = -par.BCs.Q_L 
 		end
 		if par.BCs.M_L !== nothing
@@ -160,4 +159,17 @@ module Beam1D
 		#Packaging
 		return System(par,x,S,f)
 	end
+
+	# Apply Q at a given point . Usually 0 or L for BCs
+	# Returns a vector to place in our S matrix
+	function Q_at_point(point::Float64, h::Float64, par::Parameters)
+			Iprime = ForwardDiff.derivative(par.I, point)
+			Eprime = ForwardDiff.derivative(par.E, point)
+			derivative_factor = Eprime * par.I(point) + par.E(point) * Iprime
+			
+			S_vector = [6/h^2,	 4/h,	-6/h^2,	 2/h] * 2/h * derivative_factor
+			S_vector += [12/h^3,	 6/h^2,	-12/h^3,	 6/h^2] * par.E(point) * par.I(point)
+			
+			return S_vector
+		end
 end
