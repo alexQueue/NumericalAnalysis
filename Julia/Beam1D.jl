@@ -6,8 +6,6 @@ module Beam1D
 		EI::Function
 		q::Function
 		BCs::Vector{Float64}
-		IC::Matrix{Float64}
-		t::Vector{Float64}
 	end
 
 	struct System
@@ -31,27 +29,36 @@ module Beam1D
 	the mass and stiffness matrices and p being the 
 	forcing terms together with the boundary conditions.
 	"""
-	function solve_tr(sys::System) #Transient solver
-		nₓ = length(sys.par.IC[:,1])
-		nₜ = length(sys.par.t)
+	function solve_tr(
+			sys::System, 
+			IC::Matrix{Float64}, 
+			times::Vector{Float64})
+
+		nₓ = length(IC[:,1])
+		nₜ = length(times)
 		
-		q(t) = ones(nₓ)
+		q(t) = zeros(nₓ)
 
 		u = zeros(nₓ,nₜ); u̇ = zeros(nₓ,nₜ); ü	= zeros(nₓ,nₜ);
-		u[:,1] = sys.par.IC[:,1]
-		u̇[:,1] = sys.par.IC[:,2]
-		ü[:,1] = sys.par.IC[:,3]
+		u[:,1] = IC[:,1]
+		u̇[:,1] = IC[:,2]
+		ü[:,1] = IC[:,3]
 		for j=1:nₜ-1
-			hⱼ = sys.par.t[j+1] - sys.par.t[j]
+			hⱼ = times[j+1] - times[j]
 			uⱼ_star = u[:,j] + u̇[:,j]*hⱼ + (1/2 - β)*ü[:,j]*hⱼ^2
 			u̇ⱼ_star = u̇[:,j] + (1 - γ)*ü[:,j]*hⱼ
 	
-			ü[:,j+1] = (sys.M+β*hⱼ^2*sys.S)\(q(sys.par.t[j+1]) - sys.S*uⱼ_star)
+			Suⱼ_star = sys.S*uⱼ_star
+			N_u = length(sys.x)*2
+			i = [1,2,N_u,N_u-1]
+			Suⱼ_star[i] .= 0
+
+			ü[:,j+1] = (sys.M+β*hⱼ^2*sys.S)\(q(times[j+1]) - Suⱼ_star)
 			u̇[:,j+1] = u̇ⱼ_star + γ*ü[:,j+1]*hⱼ
 			u[:,j+1] = uⱼ_star + β*ü[:,j+1]*hⱼ^2
 		end
-		return (x,j) -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
-			sys.x, u[1:2:end,j], u[2:2:end,j])(x)
+		return [x -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
+			sys.x, u[1:2:end,j], u[2:2:end,j])(x) for j ∈ 1:length(times)]
 	end
 
 
@@ -100,7 +107,7 @@ module Beam1D
 		#Boundary Conditions
 		i      = [1,2,N_u-1,N_u] #Boundary indices
 		S[i,:] = SparseArrays.sparse(LinearAlgebra.I,N_u,N_u)[i,:]
-		M[i,:] .= 0 
+		M[i,:] .= 0
 		f[i]   = par.BCs
 
 		#Packaging
