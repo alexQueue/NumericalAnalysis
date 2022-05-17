@@ -33,6 +33,7 @@ module Beam1D
 	of the boundary values
 	"""
 	function make_BC_from_dict(bc_dict)
+		length(bc_dict) == 4 ? nothing : throw(AssertionError("Must have exactly 4 BCs"))
 		BC_array = Array{Union{Float64, Nothing}}(undef, 8)
 		fields = string.(fieldnames(BoundaryConditions))
 		for (field,i) ∈ zip(fields, 1:length(fields))
@@ -82,7 +83,7 @@ module Beam1D
 	end
 
 	# Applies Dirichlet and Neumann BCs at x=0 and x=L
-	function set_x_BCs(S::SparseArrays.SparseMatrixCSC{Float64,Int64}, f::Vector{Float64}, N_u::Integer, par::Parameters)
+	function set_dirichlet_BCs(S::SparseArrays.SparseMatrixCSC{Float64,Int64}, f::Vector{Float64}, N_u::Integer, par::Parameters)
 		if par.BCs.x_0 !== nothing
 			S[N_u + 1, 1		] = 1
 			f[N_u + 1] = par.BCs.x_0
@@ -148,7 +149,7 @@ module Beam1D
 		# S embeds boundary conditions in an 8xN block at the bottom of the matrix.
 		# First four rows are for x and x' BCs.
 
-		set_x_BCs(S, f, N_u, par)
+		set_dirichlet_BCs(S, f, N_u, par)
 
 		h_0 = x[2]-x[1]
 		h_L = x[end]-x[end-1]
