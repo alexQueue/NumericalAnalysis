@@ -40,3 +40,5 @@ end
   # # x''''
   @test dot(u[1:4], -[12/h^3,   6/h^2,   -12/h^3, 6/h^2]) ≈ 4
 end
+
+touch(joinpath(ENV["HOME"], "julia-runtest"))
