@@ -28,6 +28,7 @@ anim = Plots.@animate for j ∈ 1:length(times)
     Plots.plot!(sol[j],sys.x,seriestype=:scatter)
 end
 
+# TODO: Save to the same location regardless of where the file is run from.
 Plots.gif(anim, "Images/beam_animation.gif", fps=10)
 
 u = ut[:, end]

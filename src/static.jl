@@ -36,7 +36,5 @@ println(string("X'' is ", dot(u[end-3:end], [6/h^2,   2/h,  -6/h^2,     4/h])))
 println(string("X''' is ", dot(u[end-3:end], [12/h^3,     6/h^2, -12/h^3,     6/h^2])))
 
 
-p = Plots.plot(sol)
+Plots.plot(sol)
 Plots.plot!(sol,sys.x,seriestype=:scatter)
-
-display(p)
