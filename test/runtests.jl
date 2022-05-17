@@ -1,13 +1,15 @@
 using Test
 using LinearAlgebra
-include("../Beam1D.jl")
+include("../src/Beam1D.jl")
 
 
 @testset "Parameter validations" begin
   @test_throws AssertionError Beam1D.make_BC_from_dict(Dict("x_0"=>1, "xprime_0" => 1, "Q_0" => 0, "Q_L" => 0, "M_0" => 0))
   @test_throws AssertionError Beam1D.make_BC_from_dict(Dict("x_0"=>1))
-  # @test Main.Beam1D.BoundaryConditions(1.0, 1.0, nothing, 0.0, nothing, nothing, nothing, 0.0) == Main.Beam1D.BoundaryConditions(1.0, 1.0, nothing, 0.0, nothing, nothing, nothing, 0.0)
-  # @test Beam1D.make_BC_from_dict(Dict("x_0"=>1, "xprime_0" => 1, "Q_0" => 0, "Q_L" => 0)) == Beam1D.BoundaryConditions(1, 1, nothing, 0, nothing, nothing, nothing, 0)
+
+  bcs = Beam1D.make_BC_from_dict(Dict("x_0"=>1, "xprime_0" => 1, "Q_0" => 0, "Q_L" => 0))
+  @test bcs.x_0 == 1
+  @test bcs.x_L == nothing
 end
 
 @testset "Static build integration tests" begin
@@ -40,5 +42,3 @@ end
   # # x''''
   @test dot(u[1:4], -[12/h^3,   6/h^2,   -12/h^3, 6/h^2]) ≈ 4
 end
-
-touch(joinpath(ENV["HOME"], "julia-runtest"))
