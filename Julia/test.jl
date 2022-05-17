@@ -23,15 +23,16 @@ BoundaryConditions = Beam1D.BoundaryConditions(
 )
 
 # BC using dictionary instead
-BC = Dict("x_0"=>1,"xprime_0"=>0,"x_L"=>1,"Q_L"=>1)
+BC = Dict("x_0"=>1,"xprime_0"=>0,"M_0"=>0,"Q_0"=>0)
 BoundaryConditions = Beam1D.make_BC_from_dict(BC)
 
 x_grid = collect(0:0.01:1)
-q(x) = -(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
-E(x) = x^2+1
-I(x) = x+1
+q(x) = 5#(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
+EI(x) = 1#x^2+1
+mu(x) = 1#x+1
 
-par = Beam1D.Parameters(E,I,q,BoundaryConditions)
+par = Beam1D.Parameters(mu,EI,q,BoundaryConditions)
+
 sys = Beam1D.build(x_grid,par)
 sol = Beam1D.solve_st(sys)
 
