@@ -38,8 +38,8 @@ end
   
   # These two are not working correctly.
   
-  # # x'''
-  # @test dot(u[1:4], -[6/h^2,   4/h,     -6/h^2,  2/h]) ≈ 3
-  # # # x''''
-  # @test dot(u[1:4], -[12/h^3,   6/h^2,   -12/h^3, 6/h^2]) ≈ 4
+  # x'''
+  @test dot(u[1:4], -[6/h^2,   4/h,     -6/h^2,  2/h]) ≈ 3 broken=true
+  # x''''
+  @test dot(u[1:4], -[12/h^3,   6/h^2,   -12/h^3, 6/h^2]) ≈ 4 broken=true
 end
