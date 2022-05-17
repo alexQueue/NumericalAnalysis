@@ -143,16 +143,16 @@ module Beam1D
 			f[N_u + 5] = -par.BCs.Q_0 
 		end
 		if par.BCs.M_0 !== nothing
-			S[N_u + 6, 1:4] = [6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * 2/h_0 * par.E(0) * par.I(0)
+			S[N_u + 6, 1:4] = -[6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * par.E(0) * par.I(0)
 			f[N_u + 6] = -par.BCs.M_0 
 		end
 		
 		if par.BCs.Q_L !== nothing
-			S[N_u + 7, end-3:end] = Q_at_point(L, h_L, par)
+			S[N_u + 7, end-3:end] = -Q_at_point(L, h_L, par)
 			f[N_u + 7] = -par.BCs.Q_L 
 		end
 		if par.BCs.M_L !== nothing
-			S[N_u + 8, end-3:end] = [6/h_L^2	 2/h_L	-6/h_L^2	 4/h_L] * 2/h_L * par.E(L) * par.I(L)
+			S[N_u + 8, end-3:end] = [6/h_L^2	 2/h_L	-6/h_L^2	 4/h_L] * par.E(L) * par.I(L)
 			f[N_u + 8] = par.BCs.M_L 
 		end
 		
@@ -167,7 +167,7 @@ module Beam1D
 			Eprime = ForwardDiff.derivative(par.E, point)
 			derivative_factor = Eprime * par.I(point) + par.E(point) * Iprime
 			
-			S_vector = [6/h^2,	 4/h,	-6/h^2,	 2/h] * 2/h * derivative_factor
+			S_vector = [6/h^2,	 4/h,	-6/h^2,	 2/h]  * derivative_factor
 			S_vector += [12/h^3,	 6/h^2,	-12/h^3,	 6/h^2] * par.E(point) * par.I(point)
 			
 			return S_vector
