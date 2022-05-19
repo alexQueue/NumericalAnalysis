@@ -40,8 +40,6 @@ module Beam1D
 
 		nₓ = length(IC[:,1])
 		nₜ = length(times)
-		
-		q(t) = zeros(nₓ)
 
 		u = zeros(nₓ,nₜ); u̇ = zeros(nₓ,nₜ); ü	= zeros(nₓ,nₜ);
 		u[:,1] = IC[:,1]
@@ -52,7 +50,7 @@ module Beam1D
 			uⱼ_star = u[:,j] + u̇[:,j]*hⱼ + (1/2 - β)*ü[:,j]*hⱼ^2
 			u̇ⱼ_star = u̇[:,j] + (1 - γ)*ü[:,j]*hⱼ
 	
-			rhs = sys.q(times[j+1]) - sys.S*uⱼ_star
+			rhs = evaluate(sys.f, times[j+1]) - sys.S*uⱼ_star
 			N_u = length(sys.x)*2
 			i = [1,2,N_u,N_u-1]
 			rhs[i] .= 0
@@ -85,7 +83,7 @@ module Beam1D
 		i_loc       = [1, 2, 3, 4]
 		M_loc(h,p0) = GQ3(h,p->phi_0(h,p)*phi_0(h,p)'*par.mu(p+p0))
 		S_loc(h,p0) = GQ3(h,p->phi_2(h,p)*phi_2(h,p)'*par.EI(p+p0))
-		f_loc(h,p0,t) = [GQ3(h,p->phi_0(h,p)[i]*par.q(p+p0,t)) for i in 1:4]
+		f_loc(h,p0) = [t -> GQ3(h,p->phi_0(h,p)[i]*par.q(p+p0,t)) for i ∈ 1:4]
 		
 		#Global Variables
 		N_v = length(x) #Number of vertices
@@ -101,19 +99,17 @@ module Beam1D
 		end
 
 		#Element contributions
-		for k in 1:N_e
+		for k ∈ 1:N_e
 			i       = i_loc.+2*(k-1)
 			h       = x[k+1]-x[k]
 			
 			M[i,i] += M_loc(h,x[k])
 			S[i,i] += S_loc(h,x[k])
 
-			f[i] = f[i] + f_loc[i]
-			flocal = t -> f_loc(h,x[k],t)
 			for j ∈ 1:4
 				i_f = j+2*(k-1)
 				ftemp = f[i_f]
-				f[i_f] = t -> ftemp(t) + flocal[i_f](t)
+				f[i_f] = t -> ftemp(t) + f_loc(h,x[k])[j](t)
 			end
 		end
 
@@ -121,8 +117,8 @@ module Beam1D
 		i      = [1,2,N_u-1,N_u] #Boundary indices
 		S[i,:] = SparseArrays.sparse(LinearAlgebra.I,N_u,N_u)[i,:]
 		M[i,:] .= 0
-		for j in i
-			f[j]   = t->par.BCs
+		for (j,k) ∈ zip(i,length(i))
+			f[j]   = t->par.BCs[k]
 		end
 
 		#Packaging

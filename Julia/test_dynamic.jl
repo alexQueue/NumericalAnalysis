@@ -2,7 +2,7 @@ include("Beam1D.jl")
 import Plots
 
 x_grid = collect(0:0.1:1)
-q(x,t) = -100*(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
+q(x,t) = -1*(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1) + t*x
 EI(x) = 1
 mu(x) = 1
 
