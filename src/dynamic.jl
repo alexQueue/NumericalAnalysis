@@ -2,7 +2,8 @@ include("Beam1D.jl")
 import Plots
 using LinearAlgebra
 
-x_grid = collect(0:0.05:1)
+h = 0.05
+x_grid = collect(0:h:1)
 q(x) = 20*(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
 EI(x) = 1
 mu(x) = 1
@@ -27,7 +28,8 @@ anim = Plots.@animate for j ∈ 1:length(times)
     Plots.plot!(sol[j],sys.x,seriestype=:scatter)
 end
 
-Plots.gif(anim, "../Images/beam_animation.gif", fps=10)
+# TODO: Save to the same location regardless of where the file is run from.
+Plots.gif(anim, "Images/beam_animation.gif", fps=10)
 
 u = ut[:, end]
 
