@@ -4,7 +4,7 @@ using LinearAlgebra
 
 h = 0.05
 x_grid = collect(0:h:1)
-q(x) = 20*(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
+q(x,t) = 20*(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1) + t*x
 EI(x) = 1
 mu(x) = 1
 
@@ -16,7 +16,7 @@ par = Beam1D.Parameters(mu,EI,q,BoundaryConditions)
 sys = Beam1D.build(x_grid,par)
 
 times = collect(0:0.05:10)
-u = sys.S\sys.f
+u = sys.S\Beam1D.evaluate(sys.f, 0)
 zero = zeros(length(u))
 IC = [u zero zero]
 
@@ -29,7 +29,7 @@ anim = Plots.@animate for j ∈ 1:length(times)
 end
 
 # TODO: Save to the same location regardless of where the file is run from.
-Plots.gif(anim, "Images/beam_animation.gif", fps=10)
+Plots.gif(anim, "img/beam_animation.gif", fps=10)
 
 u = ut[:, end]
 

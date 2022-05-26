@@ -10,7 +10,7 @@ BC = Dict("x_0"=>1,"xprime_0"=>2,"M_0"=>3,"Q_0"=>4)
 BoundaryConditions = Beam1D.make_BC_from_dict(BC)
 
 x_grid = collect(L_0:h:L)
-q(x) = (0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
+q(x,t) = (0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
 EI(x) = x^2+1
 mu(x) = x+1
 
