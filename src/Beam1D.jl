@@ -51,7 +51,7 @@ module Beam1D
 	function solve_st(sys::System) #Stationary solver
 		u = sys.S\evaluate(sys.f, 0)
 		return x -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
-		    sys.x,u[1:2:end],u[2:2:end])(x)
+		    sys.x,u[1:2:end],u[2:2:end])(x), u
 	end
 
 	β = 1/4; γ = 1/2

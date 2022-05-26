@@ -12,9 +12,9 @@ BoundaryConditions = Beam1D.make_BC_from_dict(BC)
 x_grid = collect(L_0:h:L)
 q(x,t) = (0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1)
 EI(x) = x^2+1
-mu(x) = x+1
+μ(x) = x+1
 
-par = Beam1D.Parameters(mu,EI,q,BoundaryConditions)
+par = Beam1D.Parameters(μ,EI,q,BoundaryConditions)
 
 sys = Beam1D.build(x_grid,par)
 sol, u = Beam1D.solve_st(sys)
