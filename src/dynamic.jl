@@ -1,6 +1,6 @@
 include("Beam1D.jl")
+include("Diagnostics.jl")
 import Plots
-using LinearAlgebra
 
 h = 0.05
 x_grid = collect(0:h:1)
@@ -32,20 +32,4 @@ end
 # TODO: Save to the same location regardless of where the file is run from.
 Plots.gif(anim, "img/beam_animation.gif", fps=10)
 
-u = ut[:, end]
-
-println("-------------")
-println("At position 0:")
-println(u[1:4])
-println(string("X is ", u[1]))
-println(string("X' is ", u[2]))
-println(string("X'' is ", dot(u[1:4], -[6/h^2,   4/h,     -6/h^2,  2/h])))
-println(string("X''' is ", dot(u[1:4], -[12/h^3,   6/h^2,   -12/h^3, 6/h^2])))
-
-println("-------------")
-println("At position L:")
-println(string("X is ", u[end-1]))
-println(string("X' is ", u[end]))
-println(string("X'' is ", dot(u[end-3:end], [6/h^2,   2/h,  -6/h^2,     4/h])))
-println(string("X''' is ", dot(u[end-3:end], [12/h^3,     6/h^2, -12/h^3,     6/h^2])))
-
+Diagnostics.print_diagnostics(ut[:, end], h)
