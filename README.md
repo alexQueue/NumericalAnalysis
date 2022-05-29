@@ -7,9 +7,20 @@ By Alex Quinlan, Henry Jacobson, Pia Callmer and Nicola Sabbadini
 ![Latest beam animation](/img/beam_animation.gif)
 
 ## Running the code
-Run the dynamic case from the root of the directory with `julia --project=. src/dynamic.jl`
-Run the static with `julia --project=. src/static.jl`
+Run the dynamic case from the root of the directory with
+```bash
+julia --project=. src/dynamic.jl
+```
+Run the static code with
+```bash
+julia --project=. src/static.jl
+```
 
-## CI
+## Testing
+
+Tests are run in Github Actions but are non-blocking. You can run tests locally with
+```bash
+julia --project=. test/runtests.jl
+````
 
 ## Package management
