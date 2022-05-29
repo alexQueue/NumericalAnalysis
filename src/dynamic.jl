@@ -10,12 +10,13 @@ mu(x) = 1
 
 
 BC = Dict("x_0"=>1,"xprime_0"=>0,"M_L"=>0,"Q_L"=>0)
+BC = Dict("x_0"=>1,"xprime_0"=>0,"xprime_L"=>0,"x_L"=>1)
 BoundaryConditions = Beam1D.make_BC_from_dict(BC)
 
 par = Beam1D.Parameters(mu,EI,q,BoundaryConditions)
 sys = Beam1D.build(x_grid,par)
 
-times = collect(0:0.05:10)
+times = collect(0:0.4:2)
 u = sys.S\Beam1D.evaluate(sys.f, 0)
 zero = zeros(length(u))
 IC = [u zero zero]

@@ -1,7 +1,7 @@
 module Beam1D
 	import SparseArrays, LinearAlgebra, CubicHermiteSpline, ForwardDiff
 
-	Base.@kwdef mutable struct BoundaryConditions
+	mutable struct BoundaryConditions
 		x_0::Union{Float64, Nothing}
 		xprime_0::Union{Float64, Nothing}
 		M_0::Union{Float64, Nothing}
@@ -12,7 +12,7 @@ module Beam1D
 		M_L::Union{Float64, Nothing}
 		Q_L::Union{Float64, Nothing}
 
-		BC_indices::Array{Int64}
+		indices::Array{Int64}
 	end
 
 	mutable struct Parameters
@@ -79,9 +79,9 @@ module Beam1D
 			u̇ⱼ_star = u̇[:,j] + (1 - γ)*ü[:,j]*hⱼ
 
 			rhs = evaluate(sys.f, times[j+1]) - sys.S*uⱼ_star
-			rhs[sys.par.BCs.BC_indices] .= 0 # TODO: potential error here?
+			rhs[sys.par.BCs.indices] .= 0 # FIX: potential error here?
 
-			ü[:,j+1] = (sys.M+β*hⱼ^2*sys.S)\(evaluate(sys.f, times[j+1]) - sys.S*uⱼ_star)
+			ü[:,j+1] = (sys.M+β*hⱼ^2*sys.S)\rhs
 			u̇[:,j+1] = u̇ⱼ_star + γ*ü[:,j+1]*hⱼ
 			u[:,j+1] = uⱼ_star + β*ü[:,j+1]*hⱼ^2			
 		end
@@ -100,26 +100,26 @@ module Beam1D
 					x::Vector{Float64})
 
 		cnt = 1
-
+		display(par.BCs)
 		if par.BCs.x_0 !== nothing
 			S[N_u + 1, 1] = 1
 			f[N_u + 1] = t -> par.BCs.x_0
-			par.BCs.BC_indices[cnt] = N_u + 1; cnt += 1
+			par.BCs.indices[cnt] = N_u + 1; cnt += 1
 		end
 		if par.BCs.xprime_0 !== nothing
 			S[N_u + 2, 2] = 1
 			f[N_u + 2] = t -> par.BCs.xprime_0
-			par.BCs.BC_indices[cnt] = N_u + 2; cnt += 1
+			par.BCs.indices[cnt] = N_u + 2; cnt += 1
 		end
 		if par.BCs.x_L !== nothing
 			S[N_u + 3, end-1] = 1
 			f[N_u + 3] = t -> par.BCs.x_L
-			par.BCs.BC_indices[cnt] = N_u + 3; cnt += 1
+			par.BCs.indices[cnt] = N_u + 3; cnt += 1
 		end
 		if par.BCs.xprime_L !== nothing
 			S[N_u + 4, end] = 1
 			f[N_u + 4] = t -> par.BCs.xprime_L
-			par.BCs.BC_indices[cnt] = N_u + 4; cnt += 1
+			par.BCs.indices[cnt] = N_u + 4; cnt += 1
 		end
 
 		h_0 = x[2]-x[1]
@@ -129,26 +129,26 @@ module Beam1D
 		if par.BCs.Q_0 !== nothing
 			S[N_u + 5, 1:4] = Q_at_point(0.0, h_0, par)
 			f[N_u + 5] = t -> -par.BCs.Q_0 
-			par.BCs.BC_indices[cnt] = N_u + 5; cnt += 1
+			par.BCs.indices[cnt] = N_u + 5; cnt += 1
 		end
 		if par.BCs.M_0 !== nothing
 			S[N_u + 6, 1:4] = -[6/h_0^2	 4/h_0	-6/h_0^2	 2/h_0] * par.EI(0)
 			f[N_u + 6] = t -> -par.BCs.M_0 
-			par.BCs.BC_indices[cnt] = N_u + 6; cnt += 1
+			par.BCs.indices[cnt] = N_u + 6; cnt += 1
 		end
 
 		if par.BCs.Q_L !== nothing
 			S[N_u + 7, end-3:end] = -Q_at_point(L, h_L, par)
 			f[N_u + 7] = t -> -par.BCs.Q_L 
-			par.BCs.BC_indices[cnt] = N_u + 7; cnt += 1
+			par.BCs.indices[cnt] = N_u + 7; cnt += 1
 		end
 		if par.BCs.M_L !== nothing
 			S[N_u + 8, end-3:end] = [6/h_L^2	 2/h_L	-6/h_L^2	 4/h_L] * par.EI(L)
 			f[N_u + 8] = t -> par.BCs.M_L 
-			par.BCs.BC_indices[cnt] = N_u + 8; cnt += 1
+			par.BCs.indices[cnt] = N_u + 8; cnt += 1
 		end
 
-		M[par.BCs.BC_indices] .= 0 # FIX: Don't think this is correct assignment
+	# M[par.BCs.indices, :] .= 0 # FIX: Don't think this is correct assignment
 	end
 	
 
@@ -195,7 +195,6 @@ module Beam1D
 			
 			M[i,i] += M_loc(h,x[k])
 			S[i,i] += S_loc(h,x[k])
-			#f[i]   += f_loc(h,x[k])
 			for j ∈ 1:4
 				i_f = j+2*(k-1)
 				ftemp = f[i_f]
@@ -205,7 +204,6 @@ module Beam1D
 
 		# S embeds boundary conditions in an 8xN block at the bottom of the matrix.
 		# First four rows are for x and x' BCs.
-
 		# #Boundary Conditions
 		set_BCs(S, M, f, N_u, par, x)
 

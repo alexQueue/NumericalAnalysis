@@ -22,7 +22,7 @@ end
   BoundaryConditions = Beam1D.make_BC_from_dict(BC)
 
   x_grid = collect(L_0:h:L)
-  q(x) = 1
+  q(x,t) = 1
   EI(x) = 1
   mu(x) = 1
 
