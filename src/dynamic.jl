@@ -2,34 +2,32 @@ include("Beam1D.jl")
 include("Diagnostics.jl")
 import Plots
 
-h = 0.05
-x_grid = collect(0:h:1)
-q(x,t) = 20*(0 ≤ x ≤ 0.6)*(0.4 ≤ x ≤ 1) + t*x
-EI(x) = 1
-mu(x) = 1
+#Initial condition
+pars = (mu=x->1,EI=x->1,q=x->10-(x<0.5))
+BCs  = Dict((0,'H')=>0,
+            (0,'G')=>1,
+            (1,'M')=>2,
+            (1,'Q')=>3)
+n = 10
+grid = collect(LinRange(0,1,n))
+h = grid[2] - grid[1]
 
+times = collect(LinRange(0,10,500))
 
-BC = Dict("x_0"=>1,"xprime_0"=>0,"M_L"=>0,"Q_L"=>0)
-BC = Dict("x_0"=>1,"xprime_0"=>0,"xprime_L"=>0,"x_L"=>1)
-BoundaryConditions = Beam1D.make_BC_from_dict(BC)
+sys  = Beam1D.build(Beam1D.Problem(pars,BCs,grid))
+IC   = [sys.E\sys.f zeros(sys.shape[2],2)]
 
-par = Beam1D.Parameters(mu,EI,q,BoundaryConditions)
-sys = Beam1D.build(x_grid,par)
+#Change load & solve dynamically
+pars  = (mu=x->1, EI=x->1, q=x->-(x<0.5))
+sys   = Beam1D.build(Beam1D.Problem(pars,BCs,grid))
 
-times = collect(0:0.4:2)
-u = sys.S\Beam1D.evaluate(sys.f, 0)
-zero = zeros(length(u))
-IC = [u zero zero]
+sol, ut = Beam1D.solve_tr(sys,IC,times)
 
-sys = Beam1D.build(x_grid,par)
-sol, ut = Beam1D.solve_tr(sys, IC, times)
-
-anim = Plots.@animate for j ∈ 1:length(times)
-    Plots.plot(sol[j],LinRange(0:1e-3:1), linewidth=:3, color="black", ylim=(0, 2))
-    Plots.plot!(sol[j],sys.x,seriestype=:scatter)
+anim = Plots.@animate for (j,t) in enumerate(times)
+    Plots.plot(sol[j],ylim=[-1.5,1.5])
+    Plots.plot!(sol[j],sys.problem.grid,seriestype=:scatter)
 end
 
-# TODO: Save to the same location regardless of where the file is run from.
-Plots.gif(anim, "img/beam_animation.gif", fps=10)
+Plots.gif(anim, "img/beam_animation.gif", fps=15)
 
-Diagnostics.print_diagnostics(ut[:, end], h)
+Diagnostics.print_diagnostics(ut[:, 1], h)
