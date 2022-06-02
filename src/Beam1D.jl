@@ -7,7 +7,7 @@ module Beam1D
 		grid::Vector{Float64}
 
 		Problem(p,b,g) = length(b) != 4 ?
-		                 throw("Invalid BCs") :
+		                 throw(AssertionError("Invalid BCs")) :
 		                 new(p,b,g)
 	end
 
