@@ -12,13 +12,10 @@ n = 10
 grid = collect(LinRange(0,1,n))
 h = grid[2] - grid[1]
 
-sys   = Beam1D.build(Beam1D.Problem(pars,BCs,grid))
-static_sol, u = Beam1D.solve_st(sys)
-
-Diagnostics.print_diagnostics(u, h)
+sys   = Beam1D.System(Beam1D.Problem(pars,BCs,grid))
+static_sol = Beam1D.solve_st(sys)
 
 plt = Plots.plot!(static_sol, sys.problem.grid, seriestype=:scatter)
 Plots.gui(plt)
 println("Plotting. Press enter to continue.")
 readline()
-
