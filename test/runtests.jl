@@ -4,32 +4,62 @@ include("../src/Beam1D.jl")
 
 
 @testset "Parameter validations" begin
-  @test_throws AssertionError Beam1D.make_BC_from_dict(Dict("x_0"=>1, "xprime_0" => 1, "Q_0" => 0, "Q_L" => 0, "M_0" => 0))
-  @test_throws AssertionError Beam1D.make_BC_from_dict(Dict("x_0"=>1))
+  pars = (mu=x->1, EI=x->1, q=x->-(x<0.5))
 
-  bcs = Beam1D.make_BC_from_dict(Dict("x_0"=>1, "xprime_0" => 1, "Q_0" => 0, "Q_L" => 0))
-  @test bcs.x_0 == 1
-  @test bcs.x_L == nothing
+  BCs  = Dict((0,'H')=>1,
+              (0,'G')=>2,
+              (1,'M')=>3,
+              (1,'Q')=>4)
+  n = 10
+  grid = collect(LinRange(0,1,n))
+  h = grid[2] - grid[1]
+
+  @test_throws AssertionError Beam1D.Problem(
+    pars,
+    Dict((1,'M')=>3,
+         (1,'Q')=>4
+        ),
+    grid
+  )
+  @test_throws AssertionError Beam1D.Problem(
+    pars,
+    Dict((0,'H')=>1,
+        (0,'G')=>2,
+        (1,'H')=>2,
+        (1,'G')=>2,
+        (1,'M')=>3,
+        (1,'Q')=>4
+    ),
+    grid
+  )
+
+  # Successful path
+  prob = Beam1D.Problem(
+    pars,
+    Dict((0,'H')=>1,
+        (0,'G')=>2,
+        (1,'M')=>3,
+        (1,'Q')=>4
+    ),
+    grid
+  )
+
+  @test prob.BCs[0, 'H'] == 1
 end
 
 @testset "Static build integration tests" begin
-  L_0 = 0.0
-  L = 1.0
-  h = 0.01
+  pars = (mu=x->1, EI=x->1, q=x->-(x<0.5))
 
-  # BC using dictionary instead
-  BC = Dict("x_0"=>1,"xprime_0"=>2,"M_0"=>3,"Q_0"=>4)
-  BoundaryConditions = Beam1D.make_BC_from_dict(BC)
+  BCs  = Dict((0,'H')=>1,
+              (0,'G')=>2,
+              (1,'M')=>3,
+              (1,'Q')=>4)
+  n = 10
+  grid = collect(LinRange(0,1,n))
+  h = grid[2] - grid[1]
 
-  x_grid = collect(L_0:h:L)
-  q(x,t) = 1
-  EI(x) = 1
-  mu(x) = 1
-
-  par = Beam1D.Parameters(mu,EI,q,BoundaryConditions)
-  sys = Beam1D.build(x_grid,par)
-  sol, u = Beam1D.solve_st(sys)
-
+  sys   = Beam1D.build(Beam1D.Problem(pars,BCs,grid))
+  static_sol, u = Beam1D.solve_st(sys)
 
   # x_0 is correct for BCs
   @test u[1] ≈ 1
