@@ -60,9 +60,9 @@ module Beam1D
 		phi_3(h,p) = [ 12/h^3         6/h^2         -12/h^3         6/h^2         ]
 
 		#1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
-		GQ3(h,qe) = 5*h/18*qe(1/2-sqrt(3/20)) +
-		           4*h/9 *qe(1/2           ) +
-		           5*h/18*qe(1/2+sqrt(3/20))
+		GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
+		           4*h/9 *f(1/2           ) +
+		           5*h/18*f(1/2+sqrt(3/20))
 
 		#Local System for element [o,o+h], with p in [0,1]
 		i_loc      = [1, 2, 3, 4]
