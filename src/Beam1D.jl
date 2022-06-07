@@ -14,9 +14,9 @@ module Beam1D
 	struct System
 		problem ::Problem
 		shape   ::Tuple{Int,Int}
-		E       ::SparseArrays.SparseMatrixCSC{Float64,Int64}
-		A       ::SparseArrays.SparseMatrixCSC{Float64,Int64}
-		f       ::Vector{Float64}
+		Me      ::SparseArrays.SparseMatrixCSC{Float64,Int64}
+		Se      ::SparseArrays.SparseMatrixCSC{Float64,Int64}
+		qe      ::Vector{Float64}
 	end
 
 	function u_to_Vh(sys::System,u) #Convert coefficients to Vh function
@@ -25,7 +25,7 @@ module Beam1D
 	end
 
 	function solve_st(sys::System) #Stationary solver
-		return u_to_Vh(sys,sys.A\sys.f)
+		return u_to_Vh(sys,sys.Se\sys.qe)
 	end
 
 	function solve_tr(sys::System,IC::Matrix{Float64},times::Vector{Float64})
@@ -44,7 +44,7 @@ module Beam1D
 			u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
 			u_1s = u_1[:,t] + (1-gamma)*h*u_2[:,t]
 
-			u_2[:,t+1] = (sys.E+beta*h^2*sys.A)\(sys.f-sys.A*u_0s)
+			u_2[:,t+1] = (sys.Me+beta*h^2*sys.Se)\(sys.qe-sys.Se*u_0s)
 			u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
 			u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
 		end
@@ -60,9 +60,9 @@ module Beam1D
 		phi_3(h,p) = [ 12/h^3         6/h^2         -12/h^3         6/h^2         ]
 
 		#1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
-		GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
-		           4*h/9 *f(1/2           ) +
-		           5*h/18*f(1/2+sqrt(3/20))
+		GQ3(h,qe) = 5*h/18*qe(1/2-sqrt(3/20)) +
+		           4*h/9 *qe(1/2           ) +
+		           5*h/18*qe(1/2+sqrt(3/20))
 
 		#Local System for element [o,o+h], with p in [0,1]
 		i_loc      = [1, 2, 3, 4]
@@ -81,16 +81,16 @@ module Beam1D
 		N_s = (N_w+N_c,N_w+N_b)    #System shape
 
 		#Global system
-		E = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
-		A = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
-		f = zeros(Float64,N_s[1])
+		Me = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
+		Se = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
+		qe = zeros(Float64,N_s[1])
 		
-		M = view(E,1:N_w,1:N_w)           #Mass matrix
-		S = view(A,1:N_w,1:N_w)           #Stiffness matrix
-		B = view(A,1:N_w,N_w+1:N_s[2])    #Boundary term matrix
-		C = view(A,N_w+1:N_s[1],1:N_s[2]) #Condition matrix
-		q = view(f,1:N_w)                 #Load vector
-		c = view(f,N_w+1:N_s[1])          #Condition vector
+		M = view(Me,1:N_w,1:N_w)           #Mass matrix
+		S = view(Se,1:N_w,1:N_w)           #Stiffness matrix
+		B = view(Se,1:N_w,N_w+1:N_s[2])    #Boundary term matrix
+		C = view(Se,N_w+1:N_s[1],1:N_s[2]) #Condition matrix
+		q = view(qe,1:N_w)                 #Load vector
+		c = view(qe,N_w+1:N_s[1])          #Condition vector
 
 		#Physics
 		for k in 1:N_e
@@ -114,6 +114,6 @@ module Beam1D
 		end
 
 		#Packaging
-		return System(problem,N_s,E,A,f)
+		return System(problem,N_s,Me,Se,qe)
 	end
 end
