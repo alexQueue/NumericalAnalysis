@@ -2,21 +2,21 @@ module Beam1D
 	import SparseArrays, CubicHermiteSpline
 
 	struct Problem
-		parameters::NamedTuple{(:mu,:EI,:q),Tuple{Function,Function,Function}}
-		BCs::Dict{Tuple{Bool,Char},Float64} #(side,type)=>value
-		grid::Vector{Float64}
+		parameters ::NamedTuple{(:mu,:EI,:q),NTuple{3,Function}}
+		BCs        ::Dict{Tuple{Bool,Char},Float64} #(side,type)=>value
+		grid       ::Vector{Float64}
 
 		Problem(p,b,g) = length(b) != 4 ?
-		                 throw(AssertionError("Invalid BCs")) :
+		                 throw("Invalid BCs") :
 		                 new(p,b,g)
 	end
 
 	struct System
-		problem::Problem
-		shape::Tuple{Int,Int}
-		A::SparseArrays.SparseMatrixCSC{Float64,Int64}
-		E::SparseArrays.SparseMatrixCSC{Float64,Int64}
-		f::Vector{Float64}
+		problem ::Problem
+		shape   ::Tuple{Int,Int}
+		E       ::SparseArrays.SparseMatrixCSC{Float64,Int64}
+		A       ::SparseArrays.SparseMatrixCSC{Float64,Int64}
+		f       ::Vector{Float64}
 	end
 
 	function u_to_Vh(sys::System,u) #Convert coefficients to Vh function
@@ -25,17 +25,15 @@ module Beam1D
 	end
 
 	function solve_st(sys::System) #Stationary solver
-    u = sys.E\sys.f
-		return u_to_Vh(sys,u), u
+		return u_to_Vh(sys,sys.A\sys.f)
 	end
 
 	function solve_tr(sys::System,IC::Matrix{Float64},times::Vector{Float64})
-		N_u = size(IC)[1]
 		N_t = length(times)
 		
-		u_0 = Array{Float64,2}(undef,N_u,N_t)
-		u_1 = Array{Float64,2}(undef,N_u,N_t)
-		u_2 = Array{Float64,2}(undef,N_u,N_t)
+		u_0 = Array{Float64,2}(undef,sys.shape[2],N_t)
+		u_1 = Array{Float64,2}(undef,sys.shape[2],N_t)
+		u_2 = Array{Float64,2}(undef,sys.shape[2],N_t)
 		
 		u_0[:,1] = IC[:,1]; u_1[:,1] = IC[:,2]; u_2[:,1] = IC[:,3]
 
@@ -46,12 +44,12 @@ module Beam1D
 			u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
 			u_1s = u_1[:,t] + (1-gamma)*h*u_2[:,t]
 
-			u_2[:,t+1] = (sys.A+beta*h^2*sys.E)\(sys.f-sys.E*u_0s)
+			u_2[:,t+1] = (sys.E+beta*h^2*sys.A)\(sys.f-sys.A*u_0s)
 			u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
 			u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
 		end
 		
-		return [u_to_Vh(sys,u) for u in eachcol(u_0)], u_0
+		return [u_to_Vh(sys,u) for u in eachcol(u_0)]
 	end
 
 	function build(problem::Problem)
@@ -74,7 +72,7 @@ module Beam1D
 		             (o .== problem.grid[[1,1,end-1,end-1]]')
 		q_loc(h,o) = GQ3(h,p -> phi_0(h,p)'*problem.parameters.q(o+h*p))
 
-		#Global variables
+		#Global constants
 		N_v = length(problem.grid) #Number of grid vertices
 		N_e = N_v-1                #Number of elements
 		N_w = N_v*2                #Number of internal unknowns
@@ -83,14 +81,14 @@ module Beam1D
 		N_s = (N_w+N_c,N_w+N_b)    #System shape
 
 		#Global system
-		A = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
 		E = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
+		A = SparseArrays.spzeros(Float64,N_s[1],N_s[2])
 		f = zeros(Float64,N_s[1])
 		
-		M = view(A,1:N_w,1:N_w)           #Mass matrix
-		S = view(E,1:N_w,1:N_w)           #Stiffness matrix
-		B = view(E,1:N_w,N_w+1:N_s[2])    #Boundary term matrix
-		C = view(E,N_w+1:N_s[1],1:N_s[2]) #Condition matrix
+		M = view(E,1:N_w,1:N_w)           #Mass matrix
+		S = view(A,1:N_w,1:N_w)           #Stiffness matrix
+		B = view(A,1:N_w,N_w+1:N_s[2])    #Boundary term matrix
+		C = view(A,N_w+1:N_s[1],1:N_s[2]) #Condition matrix
 		q = view(f,1:N_w)                 #Load vector
 		c = view(f,N_w+1:N_s[1])          #Condition vector
 
@@ -116,6 +114,6 @@ module Beam1D
 		end
 
 		#Packaging
-		return System(problem,N_s,A,E,f)
+		return System(problem,N_s,E,A,f)
 	end
 end
