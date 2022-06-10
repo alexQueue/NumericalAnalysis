@@ -1,5 +1,6 @@
 module Beam1D
 	import SparseArrays, CubicHermiteSpline
+	import Arpack
 
 	struct Problem
 		parameters ::NamedTuple{(:mu,:EI,:q),NTuple{3,Function}}
@@ -124,4 +125,35 @@ module Beam1D
 	function solve_tr_eig(sys::System)
 		return
 	end
+
+	function get_numerical_eigenvalues(sys::System)
+
+		eigenvals, eigenvecs = Arpack.eigs(sys.Me, sys.Se)	#could be changed for SM
+		#may resort eigenvalues and eigenvecs
+		eigenval_no_zeros = eigenvals[ eigenvals .!= 0]
+		eigenvecs_no_zeros = eigenvecs[: , eigenvals .!= 0]
+	
+		w_ks = 1 ./ sqrt.(eigenval_no_zeros)
+		w = (t, a, b) -> 0
+		for w_j in w_ks
+			w_i = (t, a, b) -> a .*cos(w_j*t) .+ (b/w_j).* sin(w_j*t)
+			w_temp = w
+			w(t, a, b) = w_temp(t, a, b) .+ w_i(t, a, b)
+		end
+
+		return real.(eigenval_no_zeros), real.(eigenvecs_no_zeros), w
+	end
+
+	function get_analytic_eigenvalues(system::System, pars, L)
+		n = 4
+		A = L^(-1/2)
+		x_j = [(x-0.5)*pi/L for x in 1:n]
+		k = [x_j[x]/L for x in 1:n ]
+		# analytic case: Assumption that EI and mu are constant
+		freq = (pars.EI(0)./pars.mu(0)) .* k.^4
+		w_j(x) =  [  x -> A .* ((cosh(k[j].*x) .- cos(k[j] .*x)) .- ((cosh(x_j[j]) .- cos(x_j[j]))./(sinh(x_j[j]) .+ sin(x_j[j])) .* (sinh(k[j] .*x) .- sin(k[j] .*x)))) for j in 1:n]
+
+		return freq, w_j
+	end
+
 end
