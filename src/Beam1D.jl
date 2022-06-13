@@ -10,7 +10,7 @@ module Beam1D
 		function Problem(parameters,BCs,grid)
 			p = new(parameters,BCs,grid)
 
-			@assert length(BCs) == 4 "Must have 4 BCs"
+			@assert length(p.BCs) == 4 "Must have 4 BCs"
 
 			return p
 		end
