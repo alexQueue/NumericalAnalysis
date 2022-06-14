@@ -86,16 +86,53 @@ module Beam1D
 	end
 
 	function u_to_Vh(grid::Vector{Float64},u::AbstractVector{Float64}) #Convert coefficients to Vh function
-		@assert length(u) == 2*length(grid) "Wrong number of coefficients for given grid"
+		@assert length(u) == 2*length(grid)+4 "Wrong number of coefficients for given grid"
+
+		f(x::Float64) = CubicHermiteSpline.CubicHermiteSplineInterpolation(grid,u[1:2:end-4],u[2:2:end-4])(x)
 		
-		return x -> CubicHermiteSpline.CubicHermiteSplineInterpolation(grid,u[1:2:end],u[2:2:end])(x)
+		return f
 	end
 
-	function solve_st(sys::System) #Stationary solver
-		return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe)[1:end-4])
+	function solve_st_ana(problem::Problem)
+		#TODO
+		sol(x::Float64) = 0
+
+		return sol
 	end
 
-	function solve_tr_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+	function solve_st_num(sys::System)
+		return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
+	end
+
+	function solve_tr_ana(problem::Problem,IC::Matrix{Float64})
+		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
+		@assert problem.parameters::NTuple{3,Float64} "" *
+		"mu, EI and q must be constant"
+		@assert q == 0 "q must be 0"
+
+		#TODO
+		modes(x::Float64)   = 0
+		weights(t::Float64) = 0
+
+		return modes, weights
+	end
+
+	function solve_tr_num_eig(sys::System,IC::Matrix{Float64})
+		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"		
+
+		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
+
+		ws = evals.^(-0.5)
+		as = evecs\IC[:,1]
+		bs = evecs\IC[:,2]
+
+		modes(x::Float64)   = [u_to_Vh(sys.problem.grid,evec)(x) for evec in eachcol(evecs)]
+		weights(t::Float64) = as.*cos.(ws.*t)+bs.*sin.(ws.*t)
+		
+		return modes, weights
+	end
+
+	function solve_tr_num_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
 		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
 		@assert length(times) >= 2 "Must have an initial and final time"
 		@assert all(diff(times) .> 0) "Times must be ascending"
@@ -108,8 +145,7 @@ module Beam1D
 		
 		u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
 
-		beta  = 1/4
-		gamma = 1/2
+		beta, gamma = (1/4,1/2)
 
 		for (t,h) in enumerate(diff(times))
 			u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
@@ -120,37 +156,6 @@ module Beam1D
 			u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
 		end
 		
-		return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0[1:end-4,:])]
+		return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
 	end
-
-	function get_numerical_eigenvalues(sys::System)
-
-		eigenvals, eigenvecs = Arpack.eigs(sys.Me, sys.Se)	#could be changed for SM
-		#may resort eigenvalues and eigenvecs
-		eigenval_no_zeros = eigenvals[ eigenvals .!= 0]
-		eigenvecs_no_zeros = eigenvecs[: , eigenvals .!= 0]
-	
-		w_ks = 1 ./ sqrt.(eigenval_no_zeros)
-		w = (t, a, b) -> 0
-		for w_j in w_ks
-			w_i = (t, a, b) -> a .*cos(w_j*t) .+ (b/w_j).* sin(w_j*t)
-			w_temp = w
-			w(t, a, b) = w_temp(t, a, b) .+ w_i(t, a, b)
-		end
-
-		return real.(eigenval_no_zeros), real.(eigenvecs_no_zeros), w
-	end
-
-	function get_analytic_eigenvalues(system::System, pars, L)
-		n = 4
-		A = L^(-1/2)
-		x_j = [(x-0.5)*pi/L for x in 1:n]
-		k = [x_j[x]/L for x in 1:n ]
-		# analytic case: Assumption that EI and mu are constant
-		freq = (pars.EI(0)./pars.mu(0)) .* k.^4
-		w_j(x) =  [  x -> A .* ((cosh(k[j].*x) .- cos(k[j] .*x)) .- ((cosh(x_j[j]) .- cos(x_j[j]))./(sinh(x_j[j]) .+ sin(x_j[j])) .* (sinh(k[j] .*x) .- sin(k[j] .*x)))) for j in 1:n]
-
-		return freq, w_j
-	end
-
 end
