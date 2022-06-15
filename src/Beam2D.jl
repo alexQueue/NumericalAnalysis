@@ -1,5 +1,5 @@
 module Beam2D
-	using SparseArrays,Printf #Stdlib imports
+	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
 	import IterTools, Arpack, CubicHermiteSpline #External imports
 
     function problem_constructor_from_file(file::String)
@@ -10,11 +10,73 @@ module Beam2D
         filter!(x->x[1] != '#', fl_as_list) # Remove comments
         fl_as_list = String.(fl_as_list)
         fl_as_list = striplinecomment.(fl_as_list)
-        indices = findall(x->x in ["NODES","CONNECTION","TYPE"], fl_as_list) 
+        indices = findall(x->x in ["NODES","EDGES","TYPE"], fl_as_list) 
         splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 3 lists
-        nodes,connections,types = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
+        nodes,edges,types = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
+
+        nodes = strlist_to_type(Float64, nodes)
+        edges = strlist_to_type(Int, edges)
+        
+        types = get_node_type_list(types)
+        Adjacency = create_adjacency_matrix(nodes, edges)
+
+        Adjacency,types
+    end
+    
+    function get_node_type_list(types)
+        force_re = r" +\[(.*?)\] *?| "
+        forces = []
+        # Get the prescribed forces/momenta/directed movement 
+        # from the types list
+        for type in types
+            matches = eachmatch(force_re, type, overlap = true)
+            for match in matches
+                if match[1] !== nothing
+                    push!(forces, match.captures) 
+                end
+            end
+        end
+        
+        types = [split(x, force_re) for x in types]
+
+        # Add the correct forces/momenta/directed movement 
+        # to the list of type of each node
+        for (list,i) in zip(types,1:length(types))
+            if list[2] == "FORCE"
+                types[i][3] = forces[1][1]
+                types[i][4] = forces[2][1]
+                popfirst!(forces)
+                popfirst!(forces)
+            elseif list[2] == "MOVABLE"
+                types[i][3] = forces[1][1]
+                popfirst!(forces)
+            end
+        end
+        types
     end
 
+    function fixed_bearings_nodes(types)
+        fb_nodes = 0
+        for node in types
+        end
+    end
+
+    function strlist_to_type(type, data)
+        data = split.(data, " ")
+        [parse.(type, x) for x in data]
+    end
+
+    function create_adjacency_matrix(nodes, edges)
+        size = length(nodes)
+        Adjacency = spzeros(size,size)
+        for edge in edges
+            d = norm(nodes[edge[1]]-nodes[edge[2]])
+            Adjacency[edge[1],edge[2]] = d
+        end
+        Adjacency + transpose(Adjacency)
+    end
+
+    # Copied from internet obviously
     function striplinecomment(a::String, cchars::String="#")
         b = strip(a)
         0 < length(cchars) || return b
