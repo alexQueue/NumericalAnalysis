@@ -2,7 +2,31 @@ module Beam2D
 	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
 	import IterTools, Arpack, CubicHermiteSpline #External imports
 
-    function problem_constructor_from_file(file::String)
+    struct Node
+        type::String
+        coord::Vector{Float64}
+        force::Vector{Float64}
+        moment::Float64
+        movable_direction::Union{Vector{Float64},String}
+    end
+
+    struct Edge
+        nodes::Vector{Node}
+        grid::Vector{Float64}
+    end
+
+    struct Problem
+		EI::Float64
+        nodes::Vector{Node}
+		edges::Vector{Edge}
+	end
+
+    function problem_constructor(EI::Float64, file::String)
+        Problem(EI,graph_constructor(file::String)...)
+    end
+
+    function graph_constructor(file::String)
+        # Read file and save initial lists
         io = open(file, "r")
         txt = read(io, String)
         fl_as_list = split(txt,"\n")
@@ -18,12 +42,34 @@ module Beam2D
         edges = strlist_to_type(Int, edges)
         
         types = get_node_type_list(types)
-        Adjacency = create_adjacency_matrix(nodes, edges)
+        # Adjacency = create_adjacency_matrix(nodes, edges)
 
-        Adjacency,types
+        Nodes = Vector{Node}(undef, length(nodes))
+        for (node,type,i) in zip(nodes,types,1:length(nodes))
+            if type[2] == "FORCE"
+                force = parse.(Float64, split(type[3]))
+                moment = parse.(Float64, type[4])
+                movable_direction = "ALL"
+            elseif type[2] == "MOVABLE"
+                force = [0.0, 0.0]
+                moment = 0.0
+                movable_direction = parse.(Float64, split(type[3]))
+            else
+                force = [0.0, 0.0]
+                moment = 0.0
+                movable_direction = "ALL"
+            end
+            Nodes[i] = Node(type[2], node, force, moment, movable_direction)
+        end
+        Edges = Vector{Edge}(undef, length(edges))
+        for (edge,i) in zip(edges,1:length(edges))
+            Edges[i] = Edge([Nodes[edge[1]],Nodes[edge[2]]],[0.0,1.0])
+        end
+
+        Nodes,Edges
     end
     
-    function get_node_type_list(types)
+    function get_node_type_list(types::Vector)
         force_re = r" +\[(.*?)\] *?| "
         forces = []
         # Get the prescribed forces/momenta/directed movement 
@@ -61,12 +107,12 @@ module Beam2D
         end
     end
 
-    function strlist_to_type(type, data)
+    function strlist_to_type(type::Type, data::Vector)
         data = split.(data, " ")
         [parse.(type, x) for x in data]
     end
 
-    function create_adjacency_matrix(nodes, edges)
+    function create_adjacency_matrix(nodes::Vector, edges::Vector)
         size = length(nodes)
         Adjacency = spzeros(size,size)
         for edge in edges
@@ -86,13 +132,6 @@ module Beam2D
         end
         strip(b)
     end
-
-	# struct Problem
-	# 	parameters ::NamedTuple{(:mu,:EI,:q),NTuple{3,Function}}
-	# 	BCs        ::Dict{Tuple{Bool,Char},Float64} #(side,type)=>value
-	# 	grid       ::Vector{Float64}
-
-	# end
 
 	# struct System
 	# 	problem ::Problem
