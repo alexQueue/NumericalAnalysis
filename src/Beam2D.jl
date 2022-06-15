@@ -8,11 +8,22 @@ module Beam2D
         force::Vector{Float64}
         moment::Float64
         movable_direction::Union{Vector{Float64},String}
+
+        function Node(
+                    type::Union{String,SubString{String}},
+                    coord::Vector{Float64};
+                    force::Vector{Float64} = [0.0,0.0],
+                    moment::Float64 = 0.0,
+                    movable_direction::Union{Vector{Float64},String} = "ALL"
+                )
+            new(type,coord,force,moment,movable_direction)
+        end
     end
 
     struct Edge
         nodes::Vector{Node}
         grid::Vector{Float64}
+        index_start::Int64
     end
 
     struct Problem
@@ -49,21 +60,21 @@ module Beam2D
             if type[2] == "FORCE"
                 force = parse.(Float64, split(type[3]))
                 moment = parse.(Float64, type[4])
-                movable_direction = "ALL"
+                Nodes[i] = Node(type[2], node, force=force, moment=moment)
             elseif type[2] == "MOVABLE"
-                force = [0.0, 0.0]
-                moment = 0.0
                 movable_direction = parse.(Float64, split(type[3]))
+                Nodes[i] = Node(type[2], node, movable_direction=movable_direction)
             else
-                force = [0.0, 0.0]
-                moment = 0.0
-                movable_direction = "ALL"
+                Nodes[i] = Node(type[2], node)
             end
-            Nodes[i] = Node(type[2], node, force, moment, movable_direction)
         end
+
+        index_cnt = 1
         Edges = Vector{Edge}(undef, length(edges))
         for (edge,i) in zip(edges,1:length(edges))
-            Edges[i] = Edge([Nodes[edge[1]],Nodes[edge[2]]],[0.0,1.0])
+            grid = [0.0, norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)] # 0 -> length of beam
+            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, index_cnt)
+            index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
 
         Nodes,Edges
@@ -131,6 +142,20 @@ module Beam2D
             b = replace(b, r => "")
         end
         strip(b)
+    end
+
+    function BC_matrix_construction(Problem)
+        # Count size of cᵀ
+        size = length(Problem.edges)*3
+        for node in Problem.nodes
+            if node.type == "FIXED"
+                size += 3
+            elseif node.type == "MOVABLE"
+                size += 3
+            end
+        end
+
+
     end
 
 	# struct System
