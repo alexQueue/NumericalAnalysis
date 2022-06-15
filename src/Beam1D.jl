@@ -104,32 +104,25 @@ module Beam1D
 		return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
 	end
 
-	function solve_tr_ana(problem::Problem,IC::Matrix{Float64})
-		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
-		@assert problem.parameters::NTuple{3,Float64} "" *
-		"mu, EI and q must be constant"
-		@assert q == 0 "q must be 0"
-
-		#TODO
-		modes(x::Float64)   = 0
-		weights(t::Float64) = 0
-
-		return modes, weights
-	end
-
-	function solve_tr_num_eig(sys::System,IC::Matrix{Float64})
-		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"		
+	function solve_tr_num_eig(sys::System)
+		@warn "Boundary conditions and load assumed to be 0"
 
 		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
 
-		ws = evals.^(-0.5)
-		as = evecs\IC[:,1]
-		bs = evecs\IC[:,2]
-
-		modes(x::Float64)   = [u_to_Vh(sys.problem.grid,evec)(x) for evec in eachcol(evecs)]
-		weights(t::Float64) = as.*cos.(ws.*t)+bs.*sin.(ws.*t)
+		ana_modes(x::Float64)   = 0
+		num_modes(x::Float64)   = [u_to_Vh(sys.problem.grid,evec)(x) for evec in eachcol(evecs)]
 		
-		return modes, weights
+		function num_weights(IC::Matrix{Float64})
+			@assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+
+			ws = evals.^(-0.5)
+			as = evecs\IC[:,1]
+			bs = evecs\IC[:,2]
+
+			return t::Float64 -> as.*cos.(ws.*t)+bs./ws.*sin.(ws.*t)
+		end
+		
+		return num_modes, num_weights
 	end
 
 	function solve_tr_num_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
