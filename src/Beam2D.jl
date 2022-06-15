@@ -33,10 +33,6 @@ module Beam2D
 	end
 
     function problem_constructor(EI::Float64, file::String)
-        Problem(EI,graph_constructor(file::String)...)
-    end
-
-    function graph_constructor(file::String)
         # Read file and save initial lists
         io = open(file, "r")
         txt = read(io, String)
@@ -77,7 +73,7 @@ module Beam2D
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
 
-        Nodes,Edges
+        Problem(EI,Nodes,Edges)
     end
     
     function get_node_type_list(types::Vector)
