@@ -2,12 +2,14 @@ module Beam2D
 	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
 	import IterTools, Arpack, CubicHermiteSpline #External imports
 
-    struct Node
+    mutable struct Node
         type::String
         coord::Vector{Float64}
         force::Vector{Float64}
         moment::Float64
         movable_direction::Union{Vector{Float64},String}
+
+        connecting_edges::Vector{Int64}
 
         function Node(
                     type::Union{String,SubString{String}},
@@ -16,7 +18,7 @@ module Beam2D
                     moment::Float64 = 0.0,
                     movable_direction::Union{Vector{Float64},String} = "ALL"
                 )
-            new(type,coord,force,moment,movable_direction)
+            new(type,coord,force,moment,movable_direction,[])
         end
     end
 
@@ -30,6 +32,21 @@ module Beam2D
 		EI::Float64
         nodes::Vector{Node}
 		edges::Vector{Edge}
+        shape::Tuple{Int,Int}
+
+        function Problem(EI::Float64, nodes::Vector{Node}, edges::Vector{Edge})
+            last_edge = edges[end]
+            size = last_edge.index_start + length(last_edge.grid)*3 - 1
+            shape = (size,size)
+
+            for (edge,i) in zip(edges,1:length(edges))
+                for node in edge.nodes
+                    push!(node.connecting_edges, i)
+                end
+            end
+
+            new(EI,nodes,edges,shape)
+        end
 	end
 
     function problem_constructor(EI::Float64, file::String)
@@ -140,18 +157,42 @@ module Beam2D
         strip(b)
     end
 
-    function BC_matrix_construction(Problem)
-        # Count size of cᵀ
-        size = length(Problem.edges)*3
+    function C_matrix_construction(Problem)
+        # Count size of cᵀ, denoted r
+        r = length(Problem.edges)*3
         for node in Problem.nodes
             if node.type == "FIXED"
-                size += 3
+                r += 3
             elseif node.type == "MOVABLE"
-                size += 3
+                r += 3
             end
         end
 
+        C = spzeros(r,Problem.shape[1])
+        i = 1
+        for node in Problem.nodes
+            if node.type == "FIXED"
+                j = edges[node.connecting_edges[1]].index_start
+                C[j,i] = 1
+                i += 1
 
+                j += length(edges[node.connecting_edges[1]].grid)
+                C[j,i] = 1
+                i += 1
+                
+                j += 1
+                C[j,i] = 1
+                i += 1
+            elseif node.type == "MOVABLE"
+                # TODO
+                # Get angle for connecting edge to the node
+                # and find formula for movement in any direction
+            elseif node.type in ["FORCE","FREE"]
+                # TODO
+                # Loop through the connecting edges to make the linking
+                # conditions hold, as well as the stiffness condition
+            end
+        end
     end
 
 	# struct System
