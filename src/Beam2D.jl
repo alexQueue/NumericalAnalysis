@@ -219,7 +219,7 @@ module Beam2D
     end
 
     function edge_node_order(edge, node)
-        order = edge.nodes[1].number == node.number ? "last" : "first"
+        edge.nodes[1].number == node.number ? "last" : "first"
     end
 
     function connecting_edges_conditions!(Problem, node, C, i)
@@ -253,19 +253,19 @@ module Beam2D
 
     # Returns the indices for the linking condition for the edge with order "last" or "first"
     function linking_index(edge, order)
-        i = order == "first" ? 
+        idx = order == "first" ? 
             [edge.index_start, 
                 edge.index_start + length(edge.grid)] :
             [edge.index_start + length(edge.grid) - 1,
                 edge.index_start + length(edge.grid)*3 - 2]
-        return i
+        return idx
     end
 
     function stiffness_index(edge, order)
-        i = order == "first" ? 
+        idx = order == "first" ? 
             edge.index_start + length(edge.grid)*3 - 1 :
             edge.index_start + length(edge.grid) + 1 
-        return i
+        return idx
     end
 
     function edge_angle(edge)
