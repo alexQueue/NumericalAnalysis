@@ -5,6 +5,8 @@ module Beam2D
     mutable struct Node
         type::String
         coord::Vector{Float64}
+        number::Int64
+
         force::Vector{Float64}
         moment::Float64
         movable_direction::Union{Vector{Float64},String}
@@ -13,12 +15,13 @@ module Beam2D
 
         function Node(
                     type::Union{String,SubString{String}},
-                    coord::Vector{Float64};
+                    coord::Vector{Float64},
+                    number::Int64;
                     force::Vector{Float64} = [0.0,0.0],
                     moment::Float64 = 0.0,
                     movable_direction::Union{Vector{Float64},String} = "ALL"
                 )
-            new(type,coord,force,moment,movable_direction,[])
+            new(type,coord,number,force,moment,movable_direction,[])
         end
     end
 
@@ -73,12 +76,12 @@ module Beam2D
             if type[2] == "FORCE"
                 force = parse.(Float64, split(type[3]))
                 moment = parse.(Float64, type[4])
-                Nodes[i] = Node(type[2], node, force=force, moment=moment)
+                Nodes[i] = Node(type[2], node, i, force=force, moment=moment)
             elseif type[2] == "MOVABLE"
                 movable_direction = parse.(Float64, split(type[3]))
-                Nodes[i] = Node(type[2], node, movable_direction=movable_direction)
+                Nodes[i] = Node(type[2], node, i, movable_direction=movable_direction)
             else
-                Nodes[i] = Node(type[2], node)
+                Nodes[i] = Node(type[2], node, i)
             end
         end
 
@@ -160,11 +163,18 @@ module Beam2D
     function C_matrix_construction(Problem)
         # Count size of cᵀ, denoted r
         r = length(Problem.edges)*3
+        r = 0
         for node in Problem.nodes
             if node.type == "FIXED"
                 r += 3
             elseif node.type == "MOVABLE"
-                r += 3
+                n_cnct_edges = length(node.connecting_edges)
+                r += n_cnct_edges # one bearing condition per connecting edge
+                if n_cnct_edges >= 2
+                    r += 0
+                end
+            else
+                r += (length(node.connecting_edges) - 1)*3
             end
         end
 
@@ -172,27 +182,92 @@ module Beam2D
         i = 1
         for node in Problem.nodes
             if node.type == "FIXED"
-                j = edges[node.connecting_edges[1]].index_start
-                C[j,i] = 1
+                j = Problem.edges[node.connecting_edges[1]].index_start
+                C[i,j] = 1
                 i += 1
 
-                j += length(edges[node.connecting_edges[1]].grid)
-                C[j,i] = 1
+                j += length(Problem.edges[node.connecting_edges[1]].grid)
+                C[i,j] = 1
                 i += 1
                 
                 j += 1
-                C[j,i] = 1
+                C[i,j] = 1
                 i += 1
             elseif node.type == "MOVABLE"
-                # TODO
-                # Get angle for connecting edge to the node
-                # and find formula for movement in any direction
-            elseif node.type in ["FORCE","FREE"]
-                # TODO
-                # Loop through the connecting edges to make the linking
-                # conditions hold, as well as the stiffness condition
+                for edge in Problem.edges[node.connecting_edges]
+                    phi = edge_angle(edge)
+                    order = edge_node_order(edge, node)
+
+                    # No movement in movable direction means the dot product of movement
+                    # vector with flipped displacement vector is 0
+                    # Flipped because displacement vector should be same direction as movement
+                    j = linking_index(edge, order)
+                    dx = node.movable_direction[1]; dy = node.movable_direction[2]
+                    
+                    C[i,j] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
+                    i += 1
+                end
+            else # "FORCE/FREE"
+                i = connecting_edges_conditions!(Problem, node, C, i)
             end
         end
+        C
+    end
+
+    function edge_node_order(edge, node)
+        order = edge.nodes[1].number == node.number ? "last" : "first"
+    end
+
+    function connecting_edges_conditions!(Problem, node, C, i)
+        first_edge = Problem.edges[node.connecting_edges[1]]
+        phi_1 = edge_angle(first_edge)
+        # Find out if connecting edge ends or begins at the node
+        first_order = edge_node_order(first_edge, node)
+        
+        for rem_edge in Problem.edges[node.connecting_edges[2:end]]
+            rem_order = edge_node_order(rem_edge, node)
+            
+            # Stiffness condition
+            j1 = stiffness_index(first_edge, first_order)
+            j2 = stiffness_index(rem_edge, rem_order)
+            C[i,[j1,j2]] = [1,-1]
+            i += 1
+
+            # Linking condition
+            phi_2 = edge_angle(rem_edge)
+            j1 = linking_index(first_edge, first_order)
+            j2 = linking_index(rem_edge, rem_order)
+            
+            C[i,[j1...,j2...]] = [cos(phi_1), -sin(phi_1), -cos(phi_2), sin(phi_2)]
+            i += 1
+            
+            C[i,[j1...,j2...]] = [sin(phi_1), cos(phi_1), -sin(phi_2), -cos(phi_2)]
+            i += 1
+        end
+        return i
+    end
+
+    # Returns the indices for the linking condition for the edge with order "last" or "first"
+    function linking_index(edge, order)
+        i = order == "first" ? 
+            [edge.index_start, 
+                edge.index_start + length(edge.grid)] :
+            [edge.index_start + length(edge.grid) - 1,
+                edge.index_start + length(edge.grid)*3 - 2]
+        return i
+    end
+
+    function stiffness_index(edge, order)
+        i = order == "first" ? 
+            edge.index_start + length(edge.grid)*3 - 1 :
+            edge.index_start + length(edge.grid) + 1 
+        return i
+    end
+
+    function edge_angle(edge)
+        dy = edge.nodes[2].coord[2] - edge.nodes[1].coord[2]
+        dx = edge.nodes[2].coord[1] - edge.nodes[1].coord[1]
+        atan(dy,dx)
     end
 
 	# struct System
