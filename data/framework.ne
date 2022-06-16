@@ -1,4 +1,4 @@
-# Node-Edges-File .ncf 
+# Node-Edges-File .ne
 NODES
 0.0 0.0
 0.0 1.0
