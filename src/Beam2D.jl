@@ -171,7 +171,7 @@ module Beam2D
                 n_cnct_edges = length(node.connecting_edges)
                 r += n_cnct_edges # one bearing condition per connecting edge
                 if n_cnct_edges >= 2
-                    r += 0
+                    r += (n_cnct_edges - 1)*3
                 end
             else
                 r += (length(node.connecting_edges) - 1)*3
@@ -207,6 +207,10 @@ module Beam2D
                     C[i,j] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
                     i += 1
                 end
+                # Even movable nodes can have more than one connecting edge 
+                # and then we need stiffness and linking again
+                # Q: Should stiffness condition hold here really?
+                i = connecting_edges_conditions!(Problem, node, C, i)
             else # "FORCE/FREE"
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
