@@ -32,12 +32,18 @@ module Beam2D
     end
 
     struct Problem
-		EI::Float64
+		E::Function
+		I::Function
+        A::Function
+        mu::Function
         nodes::Vector{Node}
 		edges::Vector{Edge}
         shape::Tuple{Int,Int}
 
-        function Problem(EI::Float64, nodes::Vector{Node}, edges::Vector{Edge})
+        function Problem(
+                        E::Function, I::Function, A::Function, mu::Function,
+                        nodes::Vector{Node}, edges::Vector{Edge}
+                        )
             last_edge = edges[end]
             size = last_edge.index_start + length(last_edge.grid)*3 - 1
             shape = (size,size)
@@ -48,11 +54,11 @@ module Beam2D
                 end
             end
 
-            new(EI,nodes,edges,shape)
+            new(E,I,A,mu,nodes,edges,shape)
         end
 	end
 
-    function problem_constructor(EI::Float64, file::String)
+    function problem_constructor(E::Function, I::Function, A::Function, mu::Function, file::String)
         # Read file and save initial lists
         io = open(file, "r")
         txt = read(io, String)
@@ -93,7 +99,7 @@ module Beam2D
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
 
-        Problem(EI,Nodes,Edges)
+        Problem(E,I,A,mu,Nodes,Edges)
     end
     
     function get_node_type_list(types::Vector)
@@ -160,6 +166,7 @@ module Beam2D
         strip(b)
     end
 
+    # TODO - Add values to vector of values of constraints herein as well
     function C_matrix_construction(Problem)
         # Count size of cᵀ, denoted r
         r = length(Problem.edges)*3
@@ -174,24 +181,24 @@ module Beam2D
                     r += (n_cnct_edges - 1)*3
                 end
             else
-                r += (length(node.connecting_edges) - 1)*3
+                r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             end
         end
 
-        C = spzeros(r,Problem.shape[1])
+        C = spzeros(Problem.shape[1],r)
         i = 1
         for node in Problem.nodes
             if node.type == "FIXED"
                 j = Problem.edges[node.connecting_edges[1]].index_start
-                C[i,j] = 1
+                C[j,i] = 1
                 i += 1
 
                 j += length(Problem.edges[node.connecting_edges[1]].grid)
-                C[i,j] = 1
+                C[j,i] = 1
                 i += 1
                 
                 j += 1
-                C[i,j] = 1
+                C[j,i] = 1
                 i += 1
             elseif node.type == "MOVABLE"
                 for edge in Problem.edges[node.connecting_edges]
@@ -204,7 +211,7 @@ module Beam2D
                     j = linking_index(edge, order)
                     dx = node.movable_direction[1]; dy = node.movable_direction[2]
                     
-                    C[i,j] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
+                    C[j,i] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
                     i += 1
                 end
                 # Even movable nodes can have more than one connecting edge 
@@ -234,7 +241,7 @@ module Beam2D
             # Stiffness condition
             j1 = stiffness_index(first_edge, first_order)
             j2 = stiffness_index(rem_edge, rem_order)
-            C[i,[j1,j2]] = [1,-1]
+            C[[j1,j2],i] = [1,-1]
             i += 1
 
             # Linking condition
@@ -242,10 +249,10 @@ module Beam2D
             j1 = linking_index(first_edge, first_order)
             j2 = linking_index(rem_edge, rem_order)
             
-            C[i,[j1...,j2...]] = [cos(phi_1), -sin(phi_1), -cos(phi_2), sin(phi_2)]
+            C[[j1...,j2...],i] = [cos(phi_1), -sin(phi_1), -cos(phi_2), sin(phi_2)]
             i += 1
             
-            C[i,[j1...,j2...]] = [sin(phi_1), cos(phi_1), -sin(phi_2), -cos(phi_2)]
+            C[[j1...,j2...],i] = [sin(phi_1), cos(phi_1), -sin(phi_2), -cos(phi_2)]
             i += 1
         end
         return i
@@ -274,74 +281,83 @@ module Beam2D
         atan(dy,dx)
     end
 
-	# struct System
-	# 	problem ::Problem
-	# 	shape   ::Tuple{Int,Int}
-	# 	Me      ::SparseMatrixCSC{Float64,Int64}
-	# 	Se      ::SparseMatrixCSC{Float64,Int64}
-	# 	qe      ::Vector{Float64}
+	struct System
+		problem::Problem
+		# shape   ::Tuple{Int,Int}
+		# Me      ::SparseMatrixCSC{Float64,Int64}
+		# Se      ::SparseMatrixCSC{Float64,Int64}
+        # C       ::SparseMatrixCSC{Float64,Int64}
+		# qe      ::Vector{Float64}
 
-	# 	function System(problem::Problem)
-	# 		#Index calculations
-	# 		n_w = 2*length(problem.grid) #Number of internal variables
-	# 		n_b = 4                      #Number of boundary variables
-	# 		n_c = length(problem.BCs)    #Number of boundary conditions
-	# 		n_s = n_w + n_c              #Number of system equations
-	# 		n_x = n_w + n_b              #Number of state variables
+		function System(problem::Problem)
+            n = sum([length(edge.grid)*3 for edge in problem.edges])
 
-	# 		#Global FEM system
-	# 		Me = spzeros(n_s,n_x)
-	# 		Se = spzeros(n_s,n_x)
-	# 		qe = zeros(Float64,n_s)
-			
-	# 		M = view(Me,1:n_w,1:n_w)     #Mass matrix
-	# 		S = view(Se,1:n_w,1:n_w)     #Stiffness matrix
-	# 		B = view(Se,1:n_w,n_w+1:n_x) #Boundary term matrix
-	# 		C = view(Se,n_w+1:n_s,1:n_x) #Condition matrix
-	# 		q = view(qe,1:n_w)           #Load vector
-	# 		c = view(qe,n_w+1:n_s)       #Condition vector
+            C = C_matrix_construction(problem)
+            r = size(C)[2]
 
-	# 		#Physics
-	# 		#Shape functions and derivatives on element [0,h], with p in [0,1]
-	# 		phi_0(h,p) = [ p^2*(2*p-3)+1, p*(p-1)^2*h  ,-p^2*(2*p-3)  , p^2*(p-1)*h   ]
-	# 		phi_1(h,p) = [ 6*p*(p-1)/h  , (p-1)*(3*p-1),-6*p*(p-1)/h  , p*(3*p-2)     ]
-	# 		phi_2(h,p) = [ (12*p-6)/h^2 , (6*p-4)/h    ,-(12*p-6)/h^2 , (6*p-2)/h     ]
-	# 		phi_3(h,p) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
+            Me = spzeros(n+r,n+r)
+            Se = spzeros(n+r,n+r)
+            qe = zeros(Float64,n)
 
-	# 		#1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
-	# 		GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
-	# 		           4*h/9 *f(1/2           ) +
-	# 		           5*h/18*f(1/2+sqrt(3/20))
-			
-	# 		#Local System for element [o,o+h], with p in [0,1]
-	# 		M_loc(h,o) = GQ3(h,p -> phi_0(h,p)*phi_0(h,p)'*problem.parameters.mu(o+h*p))
-	# 		S_loc(h,o) = GQ3(h,p -> phi_2(h,p)*phi_2(h,p)'*problem.parameters.EI(o+h*p))
-	# 		B_loc(h,o) = [-phi_1(h,0) -phi_0(h,0)  phi_1(h,1)  phi_0(h,1)] .* 
-	# 		             (o .== problem.grid[[1,1,end-1,end-1]]')
-	# 		q_loc(h,o) = GQ3(h,p -> phi_0(h,p)*problem.parameters.q(o+h*p))
-			
-	# 		#Contributions for each element
-	# 		for (i,h,o) in zip(collect.(IterTools.partition(1:n_w,4,2)),diff(problem.grid),problem.grid)
-	# 			M[i,i] += M_loc(h,o)
-	# 			S[i,i] += S_loc(h,o)
-	# 			B[i,:] += B_loc(h,o)
-	# 			q[i]   += q_loc(h,o)
-	# 		end
+            Se[1:n,n+1:n+r] = C
+            Se[n+1:n+r,1:n] = Transpose(C)
 
-	# 		#Boundary conditions
-	# 		for (i,((side,type),val)) in enumerate(problem.BCs)
-	# 			j = type in ['H','G'] ?
-	# 			    1     + (type=='G') + side*(n_w-2) :
-	# 			    n_w+1 + (type=='Q') + side*2
+            # Physics
+            # Shape functions and derivatives on element [0,h], with p in [0,1]
 
-	# 			C[i,j] = 1
-	# 			c[i]   = val
-	# 		end
+            # Transversal eq
+            phi_0_T(h,p) = [ p^2*(2*p-3)+1, p*(p-1)^2*h  ,-p^2*(2*p-3)  , p^2*(p-1)*h   ]
+            phi_1_T(h,p) = [ 6*p*(p-1)/h  , (p-1)*(3*p-1),-6*p*(p-1)/h  , p*(3*p-2)     ]
+            phi_2_T(h,p) = [ (12*p-6)/h^2 , (6*p-4)/h    ,-(12*p-6)/h^2 , (6*p-2)/h     ]
+            phi_3_T(h,p) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
 
-	# 		#Packaging
-	# 		return new(problem,(n_s,n_x),Me,Se,qe)
-	# 	end
-	# end
+            # Longitudinal eq
+            phi_0_L(h,p) = [p/h, 1 - p/h]
+            phi_1_L(h,p) = [1, -1]
+
+            # 1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
+			GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
+                       4*h/9 *f(1/2           ) +
+                       5*h/18*f(1/2+sqrt(3/20))
+
+            EI(x) = problem.E(x) * problem.I(x)
+            EA(x) = problem.E(x) * problem.A(x)
+
+            # Longitudinal - Transversal ordering
+            E_s = [EA,EI]
+            M_base_fncs = [phi_0_L, phi_0_T]
+            S_base_fncs = [phi_1_L, phi_2_T]
+
+			# Local System for element [o,o+h], with p in [0,1]
+			M_loc(h,o,base_fnc) = GQ3(h,p -> base_fnc(h,p)*base_fnc(h,p)'*problem.mu(o+h*p))
+            S_loc(h,o,base_fnc,E_) = GQ3(h,p -> base_fnc(h,p)*base_fnc(h,p)'*E_(o+h*p))
+
+            for edge in problem.edges
+                partitions = [
+                    # Transversal equation
+                    edge.index_start+length(edge.grid):edge.index_start+length(edge.grid)*3-1,
+                    # Longitudinal equation
+                    edge.index_start:edge.index_start+length(edge.grid)-1,
+                ]
+                for j in 1:2 # Longitudinal / Transversal
+                    partition = partitions[j]
+                    Mbase_fnc = M_base_fncs[j]
+                    Sbase_fnc = S_base_fncs[j]
+                    E_ = E_s[j]
+
+                    M = view(Me, partition, partition)
+                    S = view(Se, partition, partition)
+                    
+                    for (i,h,o) in zip(collect.(IterTools.partition(1:n,2i,i)),diff(edge.grid),edge.grid)
+                        M[i,i] += M_loc(h,o,Mbase_fnc)
+                        S[i,i] += S_loc(h,o,Sbase_fnc,E_)
+                    end                
+                end
+            end
+
+            new(problem)
+        end
+	end
 
 	# function u_to_Vh(grid::Vector{Float64},u::AbstractVector{Float64}) #Convert coefficients to Vh function
 	# 	@assert length(u) == 2*length(grid) "Wrong number of coefficients for given grid"
