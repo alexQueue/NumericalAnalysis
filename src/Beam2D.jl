@@ -186,17 +186,25 @@ module Beam2D
         end
 
         C = spzeros(Problem.shape[1],r)
+        f = spzeros(Problem.shape[1])
+        a = spzeros(r)
+
         i = 1
         for node in Problem.nodes
             if node.type == "FIXED"
+                # v
                 j = Problem.edges[node.connecting_edges[1]].index_start
                 C[j,i] = 1
-                i += 1
-
-                j += length(Problem.edges[node.connecting_edges[1]].grid)
-                C[j,i] = 1
+                a[i] = node.coord[1]
                 i += 1
                 
+                # w
+                j += length(Problem.edges[node.connecting_edges[1]].grid)
+                C[j,i] = 1
+                a[i] = node.coord[2]
+                i += 1
+                
+                # w'
                 j += 1
                 C[j,i] = 1
                 i += 1
@@ -222,7 +230,7 @@ module Beam2D
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
         end
-        C
+        C, a
     end
 
     function edge_node_order(edge, node)
@@ -284,15 +292,15 @@ module Beam2D
 	struct System
 		problem::Problem
 		# shape   ::Tuple{Int,Int}
-		# Me      ::SparseMatrixCSC{Float64,Int64}
-		# Se      ::SparseMatrixCSC{Float64,Int64}
+		Me      ::SparseMatrixCSC{Float64,Int64}
+		Se      ::SparseMatrixCSC{Float64,Int64}
+		qe      ::Vector{Float64}
         # C       ::SparseMatrixCSC{Float64,Int64}
-		# qe      ::Vector{Float64}
 
 		function System(problem::Problem)
             n = sum([length(edge.grid)*3 for edge in problem.edges])
 
-            C = C_matrix_construction(problem)
+            C,a = C_matrix_construction(problem)
             r = size(C)[2]
 
             Me = spzeros(n+r,n+r)
@@ -301,6 +309,7 @@ module Beam2D
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
+            qe[n+1:end] = a
 
             # Physics
             # Shape functions and derivatives on element [0,h], with p in [0,1]
@@ -312,7 +321,7 @@ module Beam2D
             phi_3_T(h,p) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
 
             # Longitudinal eq
-            phi_0_L(h,p) = [p/h, 1 - p/h]
+            phi_0_L(h,p) = [p, 1 - p]
             phi_1_L(h,p) = [1, -1]
 
             # 1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
@@ -334,10 +343,10 @@ module Beam2D
 
             for edge in problem.edges
                 partitions = [
-                    # Transversal equation
-                    edge.index_start+length(edge.grid):edge.index_start+length(edge.grid)*3-1,
                     # Longitudinal equation
                     edge.index_start:edge.index_start+length(edge.grid)-1,
+                    # Transversal equation
+                    edge.index_start+length(edge.grid):edge.index_start+length(edge.grid)*3-1,
                 ]
                 for j in 1:2 # Longitudinal / Transversal
                     partition = partitions[j]
@@ -348,14 +357,14 @@ module Beam2D
                     M = view(Me, partition, partition)
                     S = view(Se, partition, partition)
                     
-                    for (i,h,o) in zip(collect.(IterTools.partition(1:n,2i,i)),diff(edge.grid),edge.grid)
+                    for (i,h,o) in zip(collect.(IterTools.partition(1:n,2j,j)),diff(edge.grid),edge.grid)
                         M[i,i] += M_loc(h,o,Mbase_fnc)
                         S[i,i] += S_loc(h,o,Sbase_fnc,E_)
                     end                
                 end
             end
 
-            new(problem)
+            new(problem,Me,Se)
         end
 	end
 
