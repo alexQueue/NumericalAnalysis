@@ -48,7 +48,7 @@ module Beam2D
             size = last_edge.index_start + length(last_edge.grid)*3 - 1
             shape = (size,size)
 
-            for (edge,i) in zip(edges,1:length(edges))
+            for (i, edge) in enumerate(edges)
                 for node in edge.nodes
                     push!(node.connecting_edges, i)
                 end
@@ -93,7 +93,7 @@ module Beam2D
 
         index_cnt = 1
         Edges = Vector{Edge}(undef, length(edges))
-        for (edge,i) in zip(edges,1:length(edges))
+        for (i, edge) in enumerate(edges)
             grid = [0.0, norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)] # 0 -> length of beam
             Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, index_cnt)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
@@ -127,7 +127,7 @@ module Beam2D
 
         # Add the correct forces/momenta/directed movement 
         # to the list of type of each node
-        for (list,i) in zip(types,1:length(types))
+        for (i, list) in enumerate(types)
             if list[2] == "FORCE"
                 types[i][3] = forces[1][1]
                 types[i][4] = forces[2][1]
