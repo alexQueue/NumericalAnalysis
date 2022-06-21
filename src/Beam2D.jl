@@ -324,7 +324,7 @@ module Beam2D
 
             # Longitudinal eq
             phi_0_L(h,p) = [p, 1 - p]
-            phi_1_L(h,p) = [1, -1]
+            phi_1_L(h,p) = [1/h, -1/h]
 
             # 1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
 			GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
