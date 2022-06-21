@@ -23,7 +23,7 @@ TYPE
 5 MOVABLE [1 0]
 6 MOVABLE [0 1]
 PARAMETERS
-E 2.0
-I 2.0x + 3
-A 3.0x + x^2
-mu 1.0
+E x + 1.0
+I x+1.0
+A 1.0+x
+mu 2x+1.0-x
