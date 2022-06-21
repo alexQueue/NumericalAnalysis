@@ -291,7 +291,8 @@ module Beam2D
     end
 
 	struct System
-		problem::Problem
+		problem ::Problem
+        shape   ::Tuple{Int,Int}
 		Me      ::SparseMatrixCSC{Float64,Int64}
 		Se      ::SparseMatrixCSC{Float64,Int64}
 		qe      ::Vector{Float64}
@@ -362,8 +363,9 @@ module Beam2D
                     end                
                 end
             end
+            shape = (n,r)
 
-            new(problem,Me,Se,qe)
+            new(problem,shape,Me,Se,qe)
         end
 	end
 end
