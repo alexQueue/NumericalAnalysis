@@ -93,39 +93,37 @@ module Beam1D
 		return f
 	end
 
-	function solve_st_ana(problem::Problem)
-		#TODO
-		sol(x::Float64) = 0
-
-		return sol
-	end
-
-	function solve_st_num(sys::System)
+	function solve_st(sys::System)
 		return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
 	end
 
-	function solve_tr_num_eig(sys::System)
+	function get_eigen(sys::System)
+		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
+		
+		freqs = evals.^(-0.5)
+		modes(x::Float64) = [u_to_Vh(sys.problem.grid,evec)(x) for evec in eachcol(evecs)]
+		
+		return freqs, modes
+	end
+
+	function solve_dy_eigen(sys::System)
 		@warn "Boundary conditions and load assumed to be 0"
 
-		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
-
-		ana_modes(x::Float64)   = 0
-		num_modes(x::Float64)   = [u_to_Vh(sys.problem.grid,evec)(x) for evec in eachcol(evecs)]
+		freqs, modes = get_eigen_num(sys)
 		
-		function num_weights(IC::Matrix{Float64})
+		function weights(IC::Matrix{Float64})
 			@assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
 
-			ws = evals.^(-0.5)
 			as = evecs\IC[:,1]
 			bs = evecs\IC[:,2]
 
-			return t::Float64 -> as.*cos.(ws.*t)+bs./ws.*sin.(ws.*t)
+			return t::Float64 -> as.*cos.(freqs.*t)+bs./freqs.*sin.(freqs.*t)
 		end
 		
-		return num_modes, num_weights
+		return modes, weights
 	end
 
-	function solve_tr_num_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+	function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
 		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
 		@assert length(times) >= 2 "Must have an initial and final time"
 		@assert all(diff(times) .> 0) "Times must be ascending"
