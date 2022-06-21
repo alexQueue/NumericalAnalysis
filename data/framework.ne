@@ -1,6 +1,6 @@
 # Node-Edges-File .ne
 NODES
-0.0 0.0
+0.1 0.1
 0.0 1.0
 1.0 0.0
 1.0 1.0
@@ -22,3 +22,8 @@ TYPE
 4 FREE
 5 MOVABLE [1 0]
 6 MOVABLE [0 1]
+PARAMETERS
+E 2.0
+I 2.0x + 3
+A 3.0x + x^2
+mu 1.0
