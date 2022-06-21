@@ -58,7 +58,7 @@ module Beam2D
         end
 	end
 
-    function problem_constructor(E::Function, I::Function, A::Function, mu::Function, file::String)
+    function problem_constructor(file::String)
         # Read file and save initial lists
         io = open(file, "r")
         txt = read(io, String)
@@ -67,9 +67,9 @@ module Beam2D
         filter!(x->x[1] != '#', fl_as_list) # Remove comments
         fl_as_list = String.(fl_as_list)
         fl_as_list = striplinecomment.(fl_as_list)
-        indices = findall(x->x in ["NODES","EDGES","TYPE"], fl_as_list) 
-        splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 3 lists
-        nodes,edges,types = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
+        indices = findall(x->x in ["NODES","EDGES","TYPE","PARAMETERS"], fl_as_list) 
+        splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 4 lists
+        nodes,edges,types,params = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
 
         nodes = strlist_to_type(Float64, nodes)
         edges = strlist_to_type(Int, edges)
@@ -98,6 +98,13 @@ module Beam2D
             Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, index_cnt)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
+
+        parameters = Dict()
+        for param in params
+            str,val = split(param, " ", limit=2)
+            parameters[str] = eval(Meta.parse("x -> " * val))
+        end
+        E = parameters["E"]; I = parameters["I"]; A = parameters["A"]; mu = parameters["mu"]
 
         Problem(E,I,A,mu,Nodes,Edges)
     end
@@ -285,11 +292,9 @@ module Beam2D
 
 	struct System
 		problem::Problem
-		# shape   ::Tuple{Int,Int}
 		Me      ::SparseMatrixCSC{Float64,Int64}
 		Se      ::SparseMatrixCSC{Float64,Int64}
 		qe      ::Vector{Float64}
-        # C       ::SparseMatrixCSC{Float64,Int64}
 
 		function System(problem::Problem)
             n = sum([length(edge.grid)*3 for edge in problem.edges])
@@ -299,7 +304,7 @@ module Beam2D
 
             Me = spzeros(n+r,n+r)
             Se = spzeros(n+r,n+r)
-            qe = zeros(Float64,n)
+            qe = zeros(Float64,n+r)
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
@@ -358,7 +363,7 @@ module Beam2D
                 end
             end
 
-            new(problem,Me,Se)
+            new(problem,Me,Se,qe)
         end
 	end
 end
