@@ -24,3 +24,11 @@ julia --project=. test/runtests.jl
 ````
 
 ## Package management
+
+See: https://pkgdocs.julialang.org/v1/environments/
+
+Add packages by:
+* Entering the Julia shell.
+* Then enter package mode with `]`.
+* Activate the local project with `activate .`.
+* Finally, add the package with `add <package-name>`.
