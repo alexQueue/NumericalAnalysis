@@ -93,8 +93,10 @@ module Beam2D
 
         index_cnt = 1
         Edges = Vector{Edge}(undef, length(edges))
-        for (i, edge) in enumerate(edges)
-            grid = [0.0, norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)] # 0 -> length of beam
+        for (i,edge) in enumerate(edges)
+            L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
+            gridpoints = 2
+            grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam with 
             Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, index_cnt)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
