@@ -102,7 +102,7 @@ for par in pars:
     parameters += f'{par} {fnc}\n'
 parameters = parameters[0:-1]
 
-save_file = input('Save to file (.ne will be added): ')
+save_file = input('Save to file in ../data (.ne will be added): ')
 
 with open(f'../data/{save_file}.ne', 'w') as f:
     f.write('NODES\n')
