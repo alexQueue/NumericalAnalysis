@@ -1,5 +1,15 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys 
+
+options = sys.argv[1:]
+print(
+    'Options:\n'
+    ' \'whole\': Round clicked points to nearest integers.\n'
+    ' \'0-index\': Uses 0-indexing for the points'
+)
+indexing = 0 if '0-index' in options else 1
+
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
@@ -14,6 +24,10 @@ def onclick(event):
 
     if ix is None or iy is None:
         return
+    if 'whole' in options:
+        ix = round(ix); iy = round(iy)
+    if (ix,iy) in coords:
+        return
     coords.append((ix, iy))
 
     ax.plot(ix,iy,marker="o",color="black")
@@ -23,7 +37,8 @@ def onclick(event):
 cid = fig.canvas.mpl_connect('button_press_event', onclick)
 
 plt.show()
-
+if len(coords) == 0:
+    exit()
 
 def find_closest(coords, point):
     min_length = None
@@ -42,7 +57,7 @@ y = [y[1] for y in coords]
 ax.plot(x,y,"o",color="black")
 ax.set(xlim=(0,10),ylim=(0,10))
 for i,(x,y) in enumerate(coords):
-    ax.annotate(i+1, (x+0.1,y+0.1))
+    ax.annotate(i+indexing, (x+0.1,y+0.1))
 
 edges = []
 line_coords = []
@@ -53,9 +68,9 @@ def onclick(event):
     ix, iy = event.xdata, event.ydata
     try:
         node_index = find_closest(coords, (ix,iy))
+        node_indices.append(node_index + indexing)
     except TypeError:
         return
-    node_indices.append(node_index + 1)
     line_coords.append(coords[node_index])
     if len(line_coords) == 2:
         if sorted([x for x in node_indices]) not in [sorted(x) for x in edges]:
@@ -77,7 +92,7 @@ print('Determine type of each node:\n 1 -> FIXED\n 2 -> FREE\n 3 -> FORCE\n 4 ->
 allowed_vals = ['1','2','3','4']
 rest = {'1':'FIXED','2':'FREE'}
 types = []
-for i in range(1,len(coords)+1):
+for i in range(indexing,len(coords)+indexing):
     nr = ''
     while nr not in allowed_vals:
         nr = input(f'Node {i}: ')
