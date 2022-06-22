@@ -10,13 +10,13 @@ print(
 )
 indexing = 0 if '0-index' in options else 1
 
-
+################ Get points ################
 fig = plt.figure()
 ax = fig.add_subplot(111)
+ax.title.set_text('Add nodes')
 ax.plot(0,0)
 ax.set(xlim=(0,10),ylim=(0,10))
 ax.grid()
-
 coords = []
 
 def onclick(event):
@@ -39,7 +39,9 @@ cid = fig.canvas.mpl_connect('button_press_event', onclick)
 plt.show()
 if len(coords) == 0:
     exit()
+############################################
 
+################ Get edges #################
 def find_closest(coords, point):
     min_length = None
     index = None
@@ -52,6 +54,7 @@ def find_closest(coords, point):
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
+ax.title.set_text('Draw edges')
 x = [x[0] for x in coords]
 y = [y[1] for y in coords]
 ax.plot(x,y,"o",color="black")
@@ -87,10 +90,13 @@ def onclick(event):
 
 cid = fig.canvas.mpl_connect('button_press_event', onclick)
 plt.show(block=False)
+############################################
 
+############# Determine types ##############
 print('Determine type of each node:\n 1 -> FIXED\n 2 -> FREE\n 3 -> FORCE\n 4 -> MOVABLE')
 allowed_vals = ['1','2','3','4']
-rest = {'1':'FIXED','2':'FREE'}
+typedict = {'1':'FIXED','2':'FREE','3':'FORCE','4':'MOVABLE'}
+typesstr = []
 types = []
 for i in range(indexing,len(coords)+indexing):
     nr = ''
@@ -100,15 +106,18 @@ for i in range(indexing,len(coords)+indexing):
         Fx = input('F_x = ')
         Fy = input('F_y = ')
         M = input('M = ')
-        types.append(f'{i} FORCE [{Fx} {Fy}] [{M}]\n')
+        typesstr.append(f'{i} FORCE [{Fx} {Fy}] [{M}]\n')
     elif nr == '4':
         x = input('x-val = ')
         y = input('y-val = ')
-        types.append(f'{i} MOVABLE [{x} {y}]\n')
+        typesstr.append(f'{i} MOVABLE [{x} {y}]\n')
     else:
-        types.append(f'{i} {rest[nr]}\n')
+        typesstr.append(f'{i} {typedict[nr]}\n')
+    types.append(typedict[str(nr)])
+############################################
 
 
+########### Determine parameters ###########
 parameters = ''
 print('Determine parameter functions for E,I,A and mu')
 pars = ['E','I','A','mu']
@@ -116,7 +125,9 @@ for par in pars:
     fnc = input(f'{par}(x) = ')
     parameters += f'{par} {fnc}\n'
 parameters = parameters[0:-1]
+############################################
 
+############### Save file ##################
 save_file = input('Save to file in ../data (.ne will be added): ')
 
 with open(f'../data/{save_file}.ne', 'w') as f:
@@ -131,3 +142,25 @@ with open(f'../data/{save_file}.ne', 'w') as f:
         f.write(type_)
     f.write('PARAMETERS\n')
     f.write(parameters)
+############################################
+
+############ Plot with types ###############
+fig = plt.figure()
+ax = fig.add_subplot(111)
+ax.set(xlim=(0,10),ylim=(0,10))
+ax.grid()
+
+colors = {'FIXED':'black','FREE':'blue','FORCE':'red','MOVABLE':'green'}
+fig.text(0.2,0.9,'FIXED',ha='center',va='bottom',size='large',color=colors['FIXED'])
+fig.text(0.4,0.9,'FREE',ha='center',va='bottom',size='large',color=colors['FREE'])
+fig.text(0.6,0.9,'FORCE',ha='center',va='bottom',size='large',color=colors['FORCE'])
+fig.text(0.8,0.9,'MOVABLE',ha='center',va='bottom',size='large',color=colors['MOVABLE'])
+for edge in edges:
+    x1,y1 = coords[edge[0]-indexing]
+    x2,y2 = coords[edge[1]-indexing]
+    ax.plot([x1,x2],[y1,y2],color='black')
+for (i,coord,type) in zip(range(len(coords)),coords,types):
+    ax.plot(coord[0],coord[1],color=colors[type],marker='o')
+    ax.annotate(i+indexing, (coord[0]+0.1,coord[1]+0.1),color='black')
+plt.savefig(f'../data/{save_file}.png')
+############################################
