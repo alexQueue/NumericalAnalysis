@@ -138,7 +138,7 @@ with open(f'../data/{save_file}.ne', 'w') as f:
     for edge in edges:
         f.write(f'{edge[0]} {edge[1]}\n')
     f.write('TYPE\n')
-    for type_ in types:
+    for type_ in typesstr:
         f.write(type_)
     f.write('PARAMETERS\n')
     f.write(parameters)
