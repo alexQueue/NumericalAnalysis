@@ -23,12 +23,12 @@ end
 #TODO: Check numerical freqs/modes against analytical for cantilever
 
 #Initial condition
-pars = (mu=x->1,EI=x->1,q=x->-10)
+pars = (mu=x->1,EI=x->1,q=x->-100)
 BCs  = Dict((0,'H')=>0,
             (0,'G')=>0,
-            (1,'M')=>0,
-            (1,'Q')=>0)
-grid = collect(LinRange(0,1,2))
+            (1,'H')=>0,
+            (1,'G')=>0)
+grid = collect(LinRange(0,1,20))
 
 prob = Beam1D.Problem(pars,BCs,grid)
 sys  = Beam1D.System(prob)

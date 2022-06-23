@@ -124,19 +124,22 @@ module Beam1D
 		return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
 	end
 
-	function get_vibrations(sys::System)
+	function get_vibrations(sys::System,n_m::Int64=4)
 		@warn "Boundary conditions and load assumed to be 0"
 
-		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
-		
+		evals, evecs = (-1,0)
+		while any(evals .< 0)
+			evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_m))
+		end
+
 		freqs = evals.^(-0.5)
 		modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
 		
 		return evals, evecs, freqs, modes
 	end
 
-	function solve_dy_eigen(sys::System)
-		evals, evecs, freqs, modes = get_vibrations(sys) 
+	function solve_dy_eigen(sys::System,n_m::Int64=4)
+		evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
 		
 		X(x::Float64) = [mode(x) for mode in modes]
 
