@@ -127,8 +127,15 @@ module Beam1D
 	function get_vibrations(sys::System)
 		@warn "Boundary conditions and load assumed to be 0"
 
-		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
-		
+		n_e = 2*length(sys.problem.grid) #Number of eigenvalues to calculate
+
+		evals, evecs = (-1,0)
+
+		while any(evals .< 0)
+			println("Finding eigenvalues")
+			evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_e))
+		end
+
 		freqs = evals.^(-0.5)
 		modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
 		
