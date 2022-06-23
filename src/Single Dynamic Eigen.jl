@@ -1,7 +1,8 @@
 include("Beam1D.jl")
 import Plots
+import LinearAlgebra
 
-function get_eigen_cantilever(system::System, pars, L)
+function get_eigen_cantilever(system::Beam1D.System, pars, L)
     n = 4
     A = L^(-1/2)
     x_j = [(x-0.5)*pi/L for x in 1:n]
@@ -27,21 +28,28 @@ BCs  = Dict((0,'H')=>0,
             (0,'G')=>0,
             (1,'M')=>0,
             (1,'Q')=>0)
-grid = collect(LinRange(0,1,10))
+grid = collect(LinRange(0,1,2))
 
 prob = Beam1D.Problem(pars,BCs,grid)
 sys  = Beam1D.System(prob)
 
-IC   = [sys.Se\sys.qe zeros(sys.shape[2],2)]
+IC   = [sys.Se\sys.qe zeros(sys.shape[2])]
 
 #Change load & solve dynamically with eigen method
-times = collect(LinRange(0,10,500))
-modes, weights = Beam1D.solve_dy_eigen(sys,IC)
+xs = collect(LinRange(0,1,1000))
+ts = collect(LinRange(0,10,500))
 
-anim = Plots.@animate for t in times
-    Plots.plot(x -> modes(x)'weights(t),ylim=[-1.5,1.5])
+X,get_T = Beam1D.solve_dy_eigen(sys)
+T       = get_T(IC)
+X_xs    = X.(xs)
+X_grid  = X.(grid)
+
+anim = Plots.@animate for t in ts
+    T_t = T(t)'
+    Plots.plot(xs,Ref(T_t).*X_xs,ylim=[-1.5,1.5])
+    Plots.plot!(grid,Ref(T_t).*X_grid,seriestype=:scatter)
 end
 
-Plots.gif(anim, "beam_animation.gif", fps=15)
+Plots.gif(anim, "../img/beam_animation.gif", fps=15)
 
 #TODO: Implement some other configurations for gifs

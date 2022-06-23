@@ -15,17 +15,17 @@ sys  = Beam1D.System(prob)
 IC   = [sys.Se\sys.qe zeros(sys.shape[2],2)]
 
 #Change load & solve dynamically
-prob.pars.q = x->0
+prob.parameters.q(x) = 0
 sys = Beam1D.System(prob)
 
 times = collect(LinRange(0,10,500))
-sol   = Beam1D.solve_dy_Newmark(sys,IC,times)
+sols  = Beam1D.solve_dy_Newmark(sys,IC,times)
 
-anim = Plots.@animate for (j,t) in enumerate(times)
-    Plots.plot(sol[j],ylim=[-1.5,1.5])
-    Plots.plot!(sol[j],sys.problem.grid,seriestype=:scatter)
+anim = Plots.@animate for sol in sols
+    Plots.plot(sol,ylim=[-1.5,1.5])
+    Plots.plot!(sol,sys.problem.grid,seriestype=:scatter)
 end
 
-Plots.gif(anim, "beam_animation.gif", fps=15)
+Plots.gif(anim, "../img/beam_animation.gif", fps=15)
 
 #TODO: Implement other configurations

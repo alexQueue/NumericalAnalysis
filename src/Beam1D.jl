@@ -1,5 +1,5 @@
 module Beam1D
-	using SparseArrays #Stdlib imports
+	using SparseArrays, LinearAlgebra #Stdlib imports
 	import IterTools, Arpack, CubicHermiteSpline #External imports
 
 	struct Problem
@@ -97,32 +97,6 @@ module Beam1D
 		return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
 	end
 
-	function get_eigen(sys::System)
-		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
-		
-		freqs = evals.^(-0.5)
-		modes(x::Float64) = [u_to_Vh(sys.problem.grid,evec)(x) for evec in eachcol(evecs)]
-		
-		return freqs, modes
-	end
-
-	function solve_dy_eigen(sys::System)
-		@warn "Boundary conditions and load assumed to be 0"
-
-		freqs, modes = get_eigen_num(sys)
-		
-		function weights(IC::Matrix{Float64})
-			@assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
-
-			as = evecs\IC[:,1]
-			bs = evecs\IC[:,2]
-
-			return t::Float64 -> as.*cos.(freqs.*t)+bs./freqs.*sin.(freqs.*t)
-		end
-		
-		return modes, weights
-	end
-
 	function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
 		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
 		@assert length(times) >= 2 "Must have an initial and final time"
@@ -146,7 +120,37 @@ module Beam1D
 			u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
 			u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
 		end
-		
+	
 		return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
+	end
+
+	function get_vibrations(sys::System)
+		@warn "Boundary conditions and load assumed to be 0"
+
+		evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se))
+		
+		freqs = evals.^(-0.5)
+		modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
+		
+		return evals, evecs, freqs, modes
+	end
+
+	function solve_dy_eigen(sys::System)
+		evals, evecs, freqs, modes = get_vibrations(sys) 
+		
+		X(x::Float64) = [mode(x) for mode in modes]
+
+		function get_T(IC::Matrix{Float64})
+			@assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+
+			as = evecs\IC[:,1]
+			bs = (evecs\IC[:,2])./freqs
+
+			T(t::Float64) = as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)
+
+			return T
+		end
+
+		return X, get_T
 	end
 end
