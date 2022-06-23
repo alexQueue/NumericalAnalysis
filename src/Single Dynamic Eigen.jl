@@ -28,7 +28,7 @@ BCs  = Dict((0,'H')=>0,
             (0,'G')=>0,
             (1,'H')=>0,
             (1,'G')=>0)
-grid = collect(LinRange(0,1,10))
+grid = collect(LinRange(0,1,20))
 
 prob = Beam1D.Problem(pars,BCs,grid)
 sys  = Beam1D.System(prob)
