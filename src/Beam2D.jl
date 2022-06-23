@@ -190,7 +190,6 @@ module Beam2D
 
         C = spzeros(Problem.shape[1],r)
         f = spzeros(Problem.shape[1])
-        a = spzeros(r)
 
         i = 1
         for node in Problem.nodes
@@ -198,13 +197,11 @@ module Beam2D
                 # v
                 j = Problem.edges[node.connecting_edges[1]].index_start
                 C[j,i] = 1
-                a[i] = node.coord[1]
                 i += 1
                 
                 # w
                 j += length(Problem.edges[node.connecting_edges[1]].grid)
                 C[j,i] = 1
-                a[i] = node.coord[2]
                 i += 1
                 
                 # w'
@@ -230,10 +227,16 @@ module Beam2D
                 # Q: Should stiffness condition hold here really?
                 i = connecting_edges_conditions!(Problem, node, C, i)
             else # "FORCE/FREE"
+                if node.type == "FORCE"
+                    edge = Problem.edges[node.connecting_edges[1]]
+                    order = edge_node_order(edge, node)
+                    j1,j2 = linking_index(edge, order)
+                    f[[j1,j2]] = [node.force[1],node.force[2]]
+                end
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
         end
-        C, a
+        C
     end
 
     function edge_node_order(edge, node)
@@ -254,7 +257,7 @@ module Beam2D
             j2 = stiffness_index(rem_edge, rem_order)
             C[[j1,j2],i] = [1,-1]
             i += 1
-
+            
             # Linking condition
             phi_2 = edge_angle(rem_edge)
             j1 = linking_index(first_edge, first_order)
@@ -270,6 +273,7 @@ module Beam2D
     end
 
     # Returns the indices for the linking condition for the edge with order "last" or "first"
+    # Is the same indices for the force (i think)
     function linking_index(edge, order)
         idx = order == "first" ? 
             [edge.index_start, 
@@ -302,7 +306,7 @@ module Beam2D
 		function System(problem::Problem)
             n = sum([length(edge.grid)*3 for edge in problem.edges])
 
-            C,a = C_matrix_construction(problem)
+            C = C_matrix_construction(problem)
             r = size(C)[2]
 
             Me = spzeros(n+r,n+r)
@@ -311,7 +315,6 @@ module Beam2D
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
-            qe[n+1:end] = a
 
             # Physics
             # Shape functions and derivatives on element [0,h], with p in [0,1]
