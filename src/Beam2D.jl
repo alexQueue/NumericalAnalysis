@@ -229,14 +229,15 @@ module Beam2D
             else # "FORCE/FREE"
                 if node.type == "FORCE"
                     edge = Problem.edges[node.connecting_edges[1]]
+                    angle = edge_angle(edge)
                     order = edge_node_order(edge, node)
                     j1,j2 = linking_index(edge, order)
-                    f[[j1,j2]] = [node.force[1],node.force[2]]
+                    f[[j1,j2]] = [node.force[1]*cos(angle) ,node.force[2]*sin(angle)]
                 end
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
         end
-        C
+        C,f
     end
 
     function edge_node_order(edge, node)
@@ -290,10 +291,17 @@ module Beam2D
         return idx
     end
 
-    function edge_angle(edge)
+    function edge_angle(edge::Edge)
         dy = edge.nodes[2].coord[2] - edge.nodes[1].coord[2]
         dx = edge.nodes[2].coord[1] - edge.nodes[1].coord[1]
         atan(dy,dx)
+    end
+    
+    function edge_length(edge::Edge)
+        dy = edge.nodes[2].coord[2] - edge.nodes[1].coord[2]
+        dx = edge.nodes[2].coord[1] - edge.nodes[1].coord[1]
+        return 
+        
     end
 
 	struct System
@@ -306,7 +314,7 @@ module Beam2D
 		function System(problem::Problem)
             n = sum([length(edge.grid)*3 for edge in problem.edges])
 
-            C = C_matrix_construction(problem)
+            C,f = C_matrix_construction(problem)
             r = size(C)[2]
 
             Me = spzeros(n+r,n+r)
@@ -315,6 +323,7 @@ module Beam2D
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
+            qe[1:n] = f
 
             # Physics
             # Shape functions and derivatives on element [0,h], with p in [0,1]
@@ -373,4 +382,43 @@ module Beam2D
             new(problem,shape,Me,Se,qe)
         end
 	end
+
+    """
+    Returns a vector with 4 points, 1 and 3 at the start and end of the two beams
+    and 2 and 4 makes up the gradient
+    """
+    function to_global(problem::Problem, u::Vector{Float64})
+        n = Int(sum([length(edge.grid)/2 for edge in problem.edges]))
+        pos_vector = [[] for _=1:n]
+        i = 1
+        for edge in problem.edges
+            OG_pos = edge.nodes[1].coord
+            phi = edge_angle(edge)
+            Dphi = [cos(phi) -sin(phi); sin(phi) cos(phi)]
+            L = norm(edge.nodes[1].coord - edge.nodes[2].coord)
+            
+
+            Hermite2Bezier = [1 0 0 0; 0 0 0 1; -3 3 0 0; 0 0 -3 3]^-1
+
+            m = Int(length(edge.grid)/2)
+            for j in 1:m
+                v_start = edge.index_start
+                w_start = edge.index_start + length(edge.grid)
+                idx_jump = (j-1)*6
+                p1 = Dphi * [u[v_start + idx_jump]; u[w_start + idx_jump]]
+                r1 = Dphi * [u[w_start + idx_jump + 1]; 0]
+
+                p2 = Dphi * [u[v_start + idx_jump + 1]; u[w_start + idx_jump + 2]]
+                r2 = Dphi * [u[w_start + idx_jump + 3]; 0]
+
+                hermite_points = [p1 p2 r1 r2]'
+                bezier_points = Hermite2Bezier * hermite_points
+
+                pos_global = [x + OG_pos for x in eachrow(bezier_points)]
+                pos_vector[i] = pos_global
+                i += 1
+            end
+        end
+        pos_vector
+    end
 end
