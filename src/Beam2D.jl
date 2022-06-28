@@ -299,13 +299,6 @@ module Beam2D
         dx = edge.nodes[2].coord[1] - edge.nodes[1].coord[1]
         atan(dy,dx)
     end
-    
-    function edge_length(edge::Edge)
-        dy = edge.nodes[2].coord[2] - edge.nodes[1].coord[2]
-        dx = edge.nodes[2].coord[1] - edge.nodes[1].coord[1]
-        return 
-        
-    end
 
 	struct System
 		problem ::Problem
@@ -395,7 +388,6 @@ module Beam2D
         pos_vector = [[] for _=1:n]
         i = 1
         for edge in problem.edges
-            OG_pos = edge.nodes[1].coord
             phi = edge_angle(edge)
             Dphi = [cos(phi) -sin(phi); sin(phi) cos(phi)]
 
@@ -405,7 +397,13 @@ module Beam2D
                                 0   1]
             
             m = Int(length(edge.grid)/2)
+            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord
+            edge_start = edge.nodes[1].coord
+            pos(t) = edge_start + t*(edge_dir)
             for j in 1:m
+                OG_pos1 = pos((j-1)/m)
+                OG_pos2 = pos(j/m)
+
                 v_start = edge.index_start
                 w_start = edge.index_start + length(edge.grid)
                 idx_jump = (j-1)*6
@@ -427,8 +425,11 @@ module Beam2D
                 
                 rotated = Dphi * mapreduce(permutedims,vcat,[bezier_x,bezier_y])
 
-                pos_global = [x + OG_pos for x in eachcol(rotated)]
-                pos_vector[i] = pos_global
+                pos_global1 = [x + OG_pos1 for x in eachcol(rotated[:,1:2])]
+                pos_global2 = [x + OG_pos2 for x in eachcol(rotated[:,3:4])]
+
+                pos_global = vcat(pos_global1,pos_global2)
+                pos_vector[i] = vcat(pos_global...)
                 i += 1
             end
         end
