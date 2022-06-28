@@ -395,26 +395,36 @@ module Beam2D
             OG_pos = edge.nodes[1].coord
             phi = edge_angle(edge)
             Dphi = [cos(phi) -sin(phi); sin(phi) cos(phi)]
-            L = norm(edge.nodes[1].coord - edge.nodes[2].coord)
+
+            Hermite2Bezier_x = [1   0; 
+                                2/3 1/3; 
+                                1/3 2/3; 
+                                0   1]
             
-
-            Hermite2Bezier = [1 0 0 0; 0 0 0 1; -3 3 0 0; 0 0 -3 3]^-1
-
             m = Int(length(edge.grid)/2)
             for j in 1:m
                 v_start = edge.index_start
                 w_start = edge.index_start + length(edge.grid)
                 idx_jump = (j-1)*6
-                p1 = Dphi * [u[v_start + idx_jump]; u[w_start + idx_jump]]
-                r1 = Dphi * [u[w_start + idx_jump + 1]; 0]
+                p1 = [u[v_start + idx_jump]; u[w_start + idx_jump]]
+                d1 = u[w_start + idx_jump + 1]
+                p2 = [u[v_start + idx_jump + 1]; u[w_start + idx_jump + 2]]
+                d2 = u[w_start + idx_jump + 3]
+                
+                x = [p1[1]; p2[1]]
+                y = [p1[2]; p2[2]]
 
-                p2 = Dphi * [u[v_start + idx_jump + 1]; u[w_start + idx_jump + 2]]
-                r2 = Dphi * [u[w_start + idx_jump + 3]; 0]
+                Hermite2Bezier_y = [1           0; 
+                                    1-d1*1/3    d1*1/3; 
+                                    d2*1/3      1-d2*1/3; 
+                                    0           1]
+                
+                bezier_x = Hermite2Bezier_x * x
+                bezier_y = Hermite2Bezier_y * y
+                
+                rotated = Dphi * mapreduce(permutedims,vcat,[bezier_x,bezier_y])
 
-                hermite_points = [p1 p2 r1 r2]'
-                bezier_points = Hermite2Bezier * hermite_points
-
-                pos_global = [x + OG_pos for x in eachrow(bezier_points)]
+                pos_global = [x + OG_pos for x in eachcol(rotated)]
                 pos_vector[i] = pos_global
                 i += 1
             end
