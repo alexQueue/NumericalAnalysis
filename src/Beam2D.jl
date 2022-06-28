@@ -21,6 +21,9 @@ module Beam2D
                     moment::Float64 = 0.0,
                     movable_direction::Union{Vector{Float64},String} = "ALL"
                 )
+            if movable_direction != "ALL"
+                movable_direction = movable_direction / norm(movable_direction)
+            end
             new(type,coord,number,force,moment,movable_direction,[])
         end
     end
