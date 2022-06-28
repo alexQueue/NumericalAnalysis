@@ -380,8 +380,7 @@ module Beam2D
 	end
 
     """
-    Returns a vector with 4 points, 1 and 3 at the start and end of the two beams
-    and 2 and 4 makes up the gradient
+    Returns a vector of vector of bezier points for each finite element in the framework
     """
     function to_global(problem::Problem, u::Vector{Float64})
         n = Int(sum([length(edge.grid)/2 for edge in problem.edges]))
