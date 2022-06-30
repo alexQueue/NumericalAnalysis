@@ -151,16 +151,6 @@ module Beam2D
         [parse.(type, x) for x in data]
     end
 
-    function create_adjacency_matrix(nodes::Vector, edges::Vector)
-        size = length(nodes)
-        Adjacency = spzeros(size,size)
-        for edge in edges
-            d = norm(nodes[edge[1]]-nodes[edge[2]])
-            Adjacency[edge[1],edge[2]] = d
-        end
-        Adjacency + transpose(Adjacency)
-    end
-
     # Copied from internet obviously
     function striplinecomment(a::String, cchars::String="#")
         b = strip(a)
@@ -371,7 +361,7 @@ module Beam2D
                     for (i,h,o) in zip(collect.(IterTools.partition(1:n,2j,j)),diff(edge.grid),edge.grid)
                         M[i,i] += M_loc(h,o,Mbase_fnc)
                         S[i,i] += S_loc(h,o,Sbase_fnc,E_)
-                    end                
+                    end
                 end
             end
             shape = (n,r)
