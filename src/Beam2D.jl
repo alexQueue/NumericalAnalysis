@@ -235,7 +235,8 @@ module Beam2D
                     angle = edge_angle(edge)
                     order = edge_node_order(edge, node)
                     j1,j2 = linking_index(edge, order)
-                    f[[j1,j2]] = [node.force[1]*cos(angle) ,node.force[2]*sin(angle)]
+                    fx = node.force[1]; fy = node.force[2]
+                    f[[j1,j2]] = [fx*cos(angle) + fy*sin(angle), -fx*sin(angle) + fy*cos(angle)]
                 end
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
@@ -244,7 +245,7 @@ module Beam2D
     end
 
     function edge_node_order(edge, node)
-        edge.nodes[1].number == node.number ? "last" : "first"
+        edge.nodes[1].number == node.number ? "first" : "last"
     end
 
     function connecting_edges_conditions!(Problem, node, C, i)
