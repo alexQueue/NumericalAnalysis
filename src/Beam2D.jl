@@ -165,11 +165,11 @@ module Beam2D
     # TODO - Add values to vector of values of constraints herein as well
     function C_matrix_construction(Problem)
         # Count size of cᵀ, denoted r
-        r = length(Problem.edges)*3
         r = 0
         for node in Problem.nodes
             if node.type == "FIXED"
                 r += 3
+                r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
                 r += n_cnct_edges # one bearing condition per connecting edge
@@ -201,6 +201,9 @@ module Beam2D
                 j += 1
                 C[j,i] = 1
                 i += 1
+
+                # Add the connecting edges as well!
+                i = connecting_edges_conditions!(Problem, node, C, i)
             elseif node.type == "MOVABLE"
                 for edge in Problem.edges[node.connecting_edges]
                     phi = edge_angle(edge)
@@ -223,8 +226,7 @@ module Beam2D
                 if node.type == "FORCE"
                     edge = Problem.edges[node.connecting_edges[1]]
                     angle = edge_angle(edge)
-                    order = edge_node_order(edge, node)
-                    j1,j2 = linking_index(edge, order)
+                    j1,j2 = linking_index(edge, node)
                     fx = node.force[1]; fy = node.force[2]
                     f[[j1,j2]] = [fx*cos(angle) + fy*sin(angle), -fx*sin(angle) + fy*cos(angle)]
                 end
@@ -234,29 +236,21 @@ module Beam2D
         C,f
     end
 
-    function edge_node_order(edge, node)
-        edge.nodes[1].number == node.number ? "first" : "last"
-    end
-
     function connecting_edges_conditions!(Problem, node, C, i)
         first_edge = Problem.edges[node.connecting_edges[1]]
         phi_1 = edge_angle(first_edge)
-        # Find out if connecting edge ends or begins at the node
-        first_order = edge_node_order(first_edge, node)
         
         for rem_edge in Problem.edges[node.connecting_edges[2:end]]
-            rem_order = edge_node_order(rem_edge, node)
-            
             # Stiffness condition
-            j1 = stiffness_index(first_edge, first_order)
-            j2 = stiffness_index(rem_edge, rem_order)
+            j1 = stiffness_index(first_edge, node)
+            j2 = stiffness_index(rem_edge, node)
             C[[j1,j2],i] = [1,-1]
             i += 1
             
             # Linking condition
             phi_2 = edge_angle(rem_edge)
-            j1 = linking_index(first_edge, first_order)
-            j2 = linking_index(rem_edge, rem_order)
+            j1 = linking_index(first_edge, node)
+            j2 = linking_index(rem_edge, node)
             
             C[[j1...,j2...],i] = [cos(phi_1), -sin(phi_1), -cos(phi_2), sin(phi_2)]
             i += 1
@@ -267,9 +261,14 @@ module Beam2D
         return i
     end
 
+    function edge_node_order(edge, node)
+        edge.nodes[1].number == node.number ? "first" : "last"
+    end
+
     # Returns the indices for the linking condition for the edge with order "last" or "first"
     # Is the same indices for the force (i think)
-    function linking_index(edge, order)
+    function linking_index(edge, node)
+        order = edge_node_order(edge, node)
         idx = order == "first" ? 
             [edge.index_start, 
                 edge.index_start + length(edge.grid)] :
@@ -278,8 +277,9 @@ module Beam2D
         return idx
     end
 
-    function stiffness_index(edge, order)
-        idx = order == "first" ? 
+    function stiffness_index(edge, node)
+        order = edge_node_order(edge, node)
+        idx = order == "last" ? 
             edge.index_start + length(edge.grid)*3 - 1 :
             edge.index_start + length(edge.grid) + 1 
         return idx
