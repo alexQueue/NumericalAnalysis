@@ -1,6 +1,6 @@
 module Beam2D
 	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
-	import IterTools, Arpack, CubicHermiteSpline #External imports
+	import IterTools, Arpack #External imports
 
     mutable struct Node
         type::String
@@ -391,7 +391,7 @@ module Beam2D
         return xs, ys
     end
 
-    function solve_tr_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+    function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
         @assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
         @assert length(times) >= 2 "Must have an initial and final time"
         @assert all(diff(times) .> 0) "Times must be ascending"
@@ -404,8 +404,7 @@ module Beam2D
         
         u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
 
-        beta  = 1/4
-        gamma = 1/2
+        beta, gamma = (1/4,1/2)
 
         for (t,h) in enumerate(diff(times))
             u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
@@ -415,7 +414,40 @@ module Beam2D
             u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
             u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
         end
+    
+        return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
+    end
+
+    function get_vibrations(sys::System,n_m::Int64=4)
+        @warn "Boundary conditions and load assumed to be 0"
+
+        evals, evecs = (-1,0)
+        while any(evals .< 0)
+            evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_m))
+        end
+
+        freqs = evals.^(-0.5)
+        modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
         
-        return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0[1:end-4,:])]
+        return evals, evecs, freqs, modes
+    end
+
+    function solve_dy_eigen(sys::System,n_m::Int64=4)
+        evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
+        
+        X(x::Float64) = [mode(x) for mode in modes]
+
+        function get_T(IC::Matrix{Float64})
+            @assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+
+            as = evecs\IC[:,1]
+            bs = (evecs\IC[:,2])./freqs
+
+            T(t::Float64) = as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)
+
+            return T
+        end
+
+        return X, get_T
     end
 end
