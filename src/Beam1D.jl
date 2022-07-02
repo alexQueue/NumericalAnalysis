@@ -94,7 +94,7 @@ module Beam1D
 		ys = Vector{Function}(undef,length(grid)-1)
 
 		for (i,(x0,x1),(y0,g0,y1,g1)) in zip(1:length(grid)-1,
-			                                 IterTools.partition(grid      ,2,1),
+		                                     IterTools.partition(grid      ,2,1),
 		                                     IterTools.partition(u[1:end-4],4,2))
 			h = x1-x0
 			xs[i] = t -> LinearAlgebra.dot([x0,   h,x1,   h],phi(t))
