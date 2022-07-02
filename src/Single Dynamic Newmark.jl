@@ -21,9 +21,8 @@ sys = Beam1D.System(prob)
 times = collect(LinRange(0,10,500))
 sols  = Beam1D.solve_dy_Newmark(sys,IC,times)
 
-anim = Plots.@animate for sol in sols
-    Plots.plot(sol,ylim=[-1.5,1.5])
-    Plots.plot!(sol,sys.problem.grid,seriestype=:scatter)
+anim = Plots.@animate for (xs,ys) in sols
+    Plots.plot!.(xs,ys,0,1,ylim=[-1.5,1.5])
 end
 
 Plots.gif(anim, "../img/beam_animation.gif", fps=15)

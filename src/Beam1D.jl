@@ -1,6 +1,6 @@
 module Beam1D
 	using SparseArrays, LinearAlgebra #Stdlib imports
-	import IterTools, Arpack, CubicHermiteSpline #External imports
+	import IterTools, Arpack #External imports
 
 	struct Problem
 		parameters ::NamedTuple{(:mu,:EI,:q),NTuple{3,Function}}
@@ -88,9 +88,20 @@ module Beam1D
 	function u_to_Vh(grid::Vector{Float64},u::AbstractVector{Float64}) #Convert coefficients to Vh function
 		@assert length(u) == 2*length(grid)+4 "Wrong number of coefficients for given grid"
 
-		f(x::Float64) = CubicHermiteSpline.CubicHermiteSplineInterpolation(grid,u[1:2:end-4],u[2:2:end-4])(x)
-		
-		return f
+		phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
+
+		xs = Vector{Function}(undef,length(grid)-1)
+		ys = Vector{Function}(undef,length(grid)-1)
+
+		for (i,(x0,x1),(y0,g0,y1,g1)) in zip(1:length(grid)-1,
+			                                 IterTools.partition(grid      ,2,1),
+		                                     IterTools.partition(u[1:end-4],4,2))
+			h = x1-x0
+			xs[i] = t -> LinearAlgebra.dot([x0,   h,x1,   h],phi(t))
+			ys[i] = t -> LinearAlgebra.dot([y0,g0*h,y1,g1*h],phi(t))
+		end
+
+		return xs, ys
 	end
 
 	function solve_st(sys::System)
