@@ -313,19 +313,15 @@ module Beam2D
             qe[1:n] = f
 
             # Physics
-            # Shape functions and derivatives on element [0,h], with p in [0,1]
+            # Shape functions and derivatives on element [0,h], with t in [0,1]
+            phi_T_0(h,t) = [ t^2*(2*t-3)+1, t*(t-1)^2*h  ,-t^2*(2*t-3)  , t^2*(t-1)*h   ]
+            phi_T_1(h,t) = [ 6*t*(t-1)/h  , (t-1)*(3*t-1),-6*t*(t-1)/h  , t*(3*t-2)     ]
+            phi_T_2(h,t) = [ (12*t-6)/h^2 , (6*t-4)/h    ,-(12*t-6)/h^2 , (6*t-2)/h     ]
+            phi_T_3(h,t) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
+            phi_L_0(h,t) = [ t            , 1-t]
+            phi_L_1(h,t) = [ 1/h          ,-1/h]
 
-            # Transversal eq
-            phi_0_T(h,p) = [ p^2*(2*p-3)+1, p*(p-1)^2*h  ,-p^2*(2*p-3)  , p^2*(p-1)*h   ]
-            phi_1_T(h,p) = [ 6*p*(p-1)/h  , (p-1)*(3*p-1),-6*p*(p-1)/h  , p*(3*p-2)     ]
-            phi_2_T(h,p) = [ (12*p-6)/h^2 , (6*p-4)/h    ,-(12*p-6)/h^2 , (6*p-2)/h     ]
-            phi_3_T(h,p) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
-
-            # Longitudinal eq
-            phi_0_L(h,p) = [p, 1 - p]
-            phi_1_L(h,p) = [1/h, -1/h]
-
-            # 1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
+            # 1D, 3 point Gaussian quadrature on element [0,h], with t in [0,1]
 			GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
                        4*h/9 *f(1/2           ) +
                        5*h/18*f(1/2+sqrt(3/20))
@@ -335,12 +331,12 @@ module Beam2D
 
             # Longitudinal - Transversal ordering
             E_s = [EA,EI]
-            M_base_fncs = [phi_0_L, phi_0_T]
-            S_base_fncs = [phi_1_L, phi_2_T]
+            M_base_fncs = [phi_L_0, phi_T_0]
+            S_base_fncs = [phi_L_1, phi_T_2]
 
-			# Local System for element [o,o+h], with p in [0,1]
-			M_loc(h,o,base_fnc) = GQ3(h,p -> base_fnc(h,p)*base_fnc(h,p)'*problem.mu(o+h*p))
-            S_loc(h,o,base_fnc,E_) = GQ3(h,p -> base_fnc(h,p)*base_fnc(h,p)'*E_(o+h*p))
+			# Local System for element [o,o+h], with t in [0,1]
+			M_loc(h,o,base_fnc) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*problem.mu(o+h*t))
+            S_loc(h,o,base_fnc,E_) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*E_(o+h*t))
 
             for edge in problem.edges
                 partitions = [
@@ -393,5 +389,33 @@ module Beam2D
         end
 
         return xs, ys
+    end
+
+    function solve_tr_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+        @assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
+        @assert length(times) >= 2 "Must have an initial and final time"
+        @assert all(diff(times) .> 0) "Times must be ascending"
+        
+        n_t = length(times)
+        
+        u_0 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        u_1 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        u_2 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        
+        u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
+
+        beta  = 1/4
+        gamma = 1/2
+
+        for (t,h) in enumerate(diff(times))
+            u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
+            u_1s = u_1[:,t] + (1-gamma)*h*u_2[:,t]
+
+            u_2[:,t+1] = (sys.Me+beta*h^2*sys.Se)\(sys.qe-sys.Se*u_0s)
+            u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
+            u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
+        end
+        
+        return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0[1:end-4,:])]
     end
 end
