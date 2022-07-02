@@ -370,59 +370,28 @@ module Beam2D
         end
 	end
 
-    """
-    Returns a vector of vector of bezier points for each finite element in the framework
-    """
-    function to_global(problem::Problem, u::Vector{Float64})
-        n = Int(sum([length(edge.grid)/2 for edge in problem.edges]))
-        pos_vector = [[] for _=1:n]
-        i = 1
-        for edge in problem.edges
-            phi = edge_angle(edge)
-            Dphi = [cos(phi) -sin(phi); sin(phi) cos(phi)]
+    function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
+        phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 
-            Hermite2Bezier_x = [1   0; 
-                                2/3 1/3; 
-                                1/3 2/3; 
-                                0   1]
-            
-            m = Int(length(edge.grid)/2)
-            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord
-            edge_start = edge.nodes[1].coord
-            pos(t) = edge_start + t*(edge_dir)
-            for j in 1:m
-                OG_pos1 = pos((j-1)/m)
-                OG_pos2 = pos(j/m)
+        xs = Vector{Function}(undef,length(problem.edges))
+        ys = Vector{Function}(undef,length(problem.edges))
 
-                v_start = edge.index_start
-                w_start = edge.index_start + length(edge.grid)
-                idx_jump = (j-1)*6
-                p1 = [u[v_start + idx_jump]; u[w_start + idx_jump]]
-                d1 = u[w_start + idx_jump + 1]
-                p2 = [u[v_start + idx_jump + 1]; u[w_start + idx_jump + 2]]
-                d2 = u[w_start + idx_jump + 3]
-                
-                x = [p1[1]; p2[1]]
-                y = [p1[2]; p2[2]]
+        for i,edge in enumerate(problem.edges)
+            (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
 
-                Hermite2Bezier_y = [1           0; 
-                                    1-d1*1/3    d1*1/3; 
-                                    d2*1/3      1-d2*1/3; 
-                                    0           1]
-                
-                bezier_x = Hermite2Bezier_x * x
-                bezier_y = Hermite2Bezier_y * y
-                
-                rotated = Dphi * mapreduce(permutedims,vcat,[bezier_x,bezier_y])
+            e = edge.nodes[1].coord - edge.nodes[2].coord
+            R = [e[1] -e[2]; e[2] e[1]]./norm(e)
+            h = norm(e) + x0 + x1
 
-                pos_global1 = [x + OG_pos1 for x in eachcol(rotated[:,1:2])]
-                pos_global2 = [x + OG_pos2 for x in eachcol(rotated[:,3:4])]
+            q0_x,q0_y = edge.nodes[1].coord .+ R * [x0,y0]
+            q1_x,q1_y = edge.nodes[2].coord .+ R * [x1,y1]
+            u0_x,u0_y = R * [1,g0] .* h
+            u1_x,u1_y = R * [1,g1] .* h
 
-                pos_global = vcat(pos_global1,pos_global2)
-                pos_vector[i] = vcat(pos_global...)
-                i += 1
-            end
+            xs[i] = t -> LinearAlgebra.dot([q0_x,u0_x,q1_x,u1_x],phi(t))
+            ys[i] = t -> LinearAlgebra.dot([q0_y,u0_y,q1_y,u1_y],phi(t))
         end
-        pos_vector
+
+        return xs, ys
     end
 end
