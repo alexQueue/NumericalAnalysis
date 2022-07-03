@@ -79,7 +79,8 @@ def onclick(event):
         if sorted([x for x in node_indices]) not in [sorted(x) for x in edges]:
             ax.plot([line_coords[0][0],line_coords[1][0]],[line_coords[0][1],line_coords[1][1]],color="black")
             ax.set(xlim=(0,10),ylim=(0,10))
-            edges.append((node_indices[0],node_indices[1]))
+            if node_indices[0] != node_indices[1]:
+                edges.append((node_indices[0],node_indices[1]))
         
         line_coords.pop()
         line_coords.pop()
@@ -155,10 +156,11 @@ fig.text(0.2,0.9,'FIXED',ha='center',va='bottom',size='large',color=colors['FIXE
 fig.text(0.4,0.9,'FREE',ha='center',va='bottom',size='large',color=colors['FREE'])
 fig.text(0.6,0.9,'FORCE',ha='center',va='bottom',size='large',color=colors['FORCE'])
 fig.text(0.8,0.9,'MOVABLE',ha='center',va='bottom',size='large',color=colors['MOVABLE'])
-for edge in edges:
+for i,edge in enumerate(edges):
     x1,y1 = coords[edge[0]-indexing]
     x2,y2 = coords[edge[1]-indexing]
     ax.plot([x1,x2],[y1,y2],color='black')
+    ax.annotate(i+indexing, ([(x1+x2)/2+0.1,(y1+y2)/2+0.1]),color="orange")
 for (i,coord,type) in zip(range(len(coords)),coords,types):
     ax.plot(coord[0],coord[1],color=colors[type],marker='o')
     ax.annotate(i+indexing, (coord[0]+0.1,coord[1]+0.1),color='black')
