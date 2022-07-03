@@ -1,6 +1,6 @@
 module Beam2D
 	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
-	import IterTools, Arpack, CubicHermiteSpline #External imports
+	import IterTools, Arpack #External imports
 
     mutable struct Node
         type::String
@@ -327,19 +327,15 @@ module Beam2D
             qe[1:n] = f
 
             # Physics
-            # Shape functions and derivatives on element [0,h], with p in [0,1]
+            # Shape functions and derivatives on element [0,h], with t in [0,1]
+            phi_T_0(h,t) = [ t^2*(2*t-3)+1, t*(t-1)^2*h  ,-t^2*(2*t-3)  , t^2*(t-1)*h   ]
+            phi_T_1(h,t) = [ 6*t*(t-1)/h  , (t-1)*(3*t-1),-6*t*(t-1)/h  , t*(3*t-2)     ]
+            phi_T_2(h,t) = [ (12*t-6)/h^2 , (6*t-4)/h    ,-(12*t-6)/h^2 , (6*t-2)/h     ]
+            phi_T_3(h,t) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
+            phi_L_0(h,t) = [ t            , 1-t]
+            phi_L_1(h,t) = [ 1/h          ,-1/h]
 
-            # Transversal eq
-            phi_0_T(h,p) = [ p^2*(2*p-3)+1, p*(p-1)^2*h  ,-p^2*(2*p-3)  , p^2*(p-1)*h   ]
-            phi_1_T(h,p) = [ 6*p*(p-1)/h  , (p-1)*(3*p-1),-6*p*(p-1)/h  , p*(3*p-2)     ]
-            phi_2_T(h,p) = [ (12*p-6)/h^2 , (6*p-4)/h    ,-(12*p-6)/h^2 , (6*p-2)/h     ]
-            phi_3_T(h,p) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
-
-            # Longitudinal eq
-            phi_0_L(h,p) = [p, 1 - p]
-            phi_1_L(h,p) = [1/h, -1/h]
-
-            # 1D, 3 point Gaussian quadrature on element [0,h], with p in [0,1]
+            # 1D, 3 point Gaussian quadrature on element [0,h], with t in [0,1]
 			GQ3(h,f) = 5*h/18*f(1/2-sqrt(3/20)) +
                        4*h/9 *f(1/2           ) +
                        5*h/18*f(1/2+sqrt(3/20))
@@ -349,12 +345,12 @@ module Beam2D
 
             # Longitudinal - Transversal ordering
             E_s = [EA,EI]
-            M_base_fncs = [phi_0_L, phi_0_T]
-            S_base_fncs = [phi_1_L, phi_2_T]
+            M_base_fncs = [phi_L_0, phi_T_0]
+            S_base_fncs = [phi_L_1, phi_T_2]
 
-			# Local System for element [o,o+h], with p in [0,1]
-			M_loc(h,o,base_fnc) = GQ3(h,p -> base_fnc(h,p)*base_fnc(h,p)'*problem.mu(o+h*p))
-            S_loc(h,o,base_fnc,E_) = GQ3(h,p -> base_fnc(h,p)*base_fnc(h,p)'*E_(o+h*p))
+			# Local System for element [o,o+h], with t in [0,1]
+			M_loc(h,o,base_fnc) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*problem.mu(o+h*t))
+            S_loc(h,o,base_fnc,E_) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*E_(o+h*t))
 
             for edge in problem.edges
                 partitions = [
@@ -384,59 +380,88 @@ module Beam2D
         end
 	end
 
-    """
-    Returns a vector of vector of bezier points for each finite element in the framework
-    """
-    function to_global(problem::Problem, u::Vector{Float64})
-        n = Int(sum([length(edge.grid)/2 for edge in problem.edges]))
-        pos_vector = [[] for _=1:n]
-        i = 1
-        for edge in problem.edges
-            phi = edge_angle(edge)
-            Dphi = [cos(phi) -sin(phi); sin(phi) cos(phi)]
+    function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
+        phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 
-            Hermite2Bezier_x = [1   0; 
-                                2/3 1/3; 
-                                1/3 2/3; 
-                                0   1]
-            
-            m = Int(length(edge.grid)/2)
-            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord
-            edge_start = edge.nodes[1].coord
-            pos(t) = edge_start + t*(edge_dir)
-            for j in 1:m
-                OG_pos1 = pos((j-1)/m)
-                OG_pos2 = pos(j/m)
+        xs = Vector{Function}(undef,length(problem.edges))
+        ys = Vector{Function}(undef,length(problem.edges))
 
-                v_start = edge.index_start
-                w_start = edge.index_start + length(edge.grid)
-                idx_jump = (j-1)*6
-                p1 = [u[v_start + idx_jump]; u[w_start + idx_jump]]
-                d1 = u[w_start + idx_jump + 1]
-                p2 = [u[v_start + idx_jump + 1]; u[w_start + idx_jump + 2]]
-                d2 = u[w_start + idx_jump + 3]
-                
-                x = [p1[1]; p2[1]]
-                y = [p1[2]; p2[2]]
+        for i,edge in enumerate(problem.edges)
+            (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
 
-                Hermite2Bezier_y = [1           0; 
-                                    1-d1*1/3    d1*1/3; 
-                                    d2*1/3      1-d2*1/3; 
-                                    0           1]
-                
-                bezier_x = Hermite2Bezier_x * x
-                bezier_y = Hermite2Bezier_y * y
-                
-                rotated = Dphi * mapreduce(permutedims,vcat,[bezier_x,bezier_y])
+            e = edge.nodes[1].coord - edge.nodes[2].coord
+            R = [e[1] -e[2]; e[2] e[1]]./norm(e)
+            h = norm(e) + x0 + x1
 
-                pos_global1 = [x + OG_pos1 for x in eachcol(rotated[:,1:2])]
-                pos_global2 = [x + OG_pos2 for x in eachcol(rotated[:,3:4])]
+            q0_x,q0_y = edge.nodes[1].coord .+ R * [x0,y0]
+            q1_x,q1_y = edge.nodes[2].coord .+ R * [x1,y1]
+            u0_x,u0_y = R * [1,g0] .* h
+            u1_x,u1_y = R * [1,g1] .* h
 
-                pos_global = vcat(pos_global1,pos_global2)
-                pos_vector[i] = vcat(pos_global...)
-                i += 1
-            end
+            xs[i] = t -> LinearAlgebra.dot([q0_x,u0_x,q1_x,u1_x],phi(t))
+            ys[i] = t -> LinearAlgebra.dot([q0_y,u0_y,q1_y,u1_y],phi(t))
         end
-        pos_vector
+
+        return xs, ys
+    end
+
+    function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+        @assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
+        @assert length(times) >= 2 "Must have an initial and final time"
+        @assert all(diff(times) .> 0) "Times must be ascending"
+        
+        n_t = length(times)
+        
+        u_0 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        u_1 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        u_2 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        
+        u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
+
+        beta, gamma = (1/4,1/2)
+
+        for (t,h) in enumerate(diff(times))
+            u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
+            u_1s = u_1[:,t] + (1-gamma)*h*u_2[:,t]
+
+            u_2[:,t+1] = (sys.Me+beta*h^2*sys.Se)\(sys.qe-sys.Se*u_0s)
+            u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
+            u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
+        end
+    
+        return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
+    end
+
+    function get_vibrations(sys::System,n_m::Int64=4)
+        @warn "Boundary conditions and load assumed to be 0"
+
+        evals, evecs = (-1,0)
+        while any(evals .< 0)
+            evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_m))
+        end
+
+        freqs = evals.^(-0.5)
+        modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
+        
+        return evals, evecs, freqs, modes
+    end
+
+    function solve_dy_eigen(sys::System,n_m::Int64=4)
+        evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
+        
+        X(x::Float64) = [mode(x) for mode in modes]
+
+        function get_T(IC::Matrix{Float64})
+            @assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+
+            as = evecs\IC[:,1]
+            bs = (evecs\IC[:,2])./freqs
+
+            T(t::Float64) = as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)
+
+            return T
+        end
+
+        return X, get_T
     end
 end
