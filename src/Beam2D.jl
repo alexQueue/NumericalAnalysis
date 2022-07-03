@@ -169,7 +169,7 @@ module Beam2D
         for node in Problem.nodes
             if node.type == "FIXED"
                 r += 3
-                r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
+                # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
                 r += n_cnct_edges # one bearing condition per connecting edge
@@ -187,32 +187,30 @@ module Beam2D
         i = 1
         for node in Problem.nodes
             if node.type == "FIXED"
+                j1,j2,j3 = fixed_index(Problem.edges[node.connecting_edges[1]], node)
+                
                 # v
-                j = Problem.edges[node.connecting_edges[1]].index_start
-                C[j,i] = 1
+                C[j1,i] = 1
                 i += 1
                 
-                # w
-                j += length(Problem.edges[node.connecting_edges[1]].grid)
-                C[j,i] = 1
+                # w 
+                C[j2,i] = 1
                 i += 1
                 
                 # w'
-                j += 1
-                C[j,i] = 1
+                C[j3,i] = 1
                 i += 1
 
                 # Add the connecting edges as well!
-                i = connecting_edges_conditions!(Problem, node, C, i)
+                # i = connecting_edges_conditions!(Problem, node, C, i)
             elseif node.type == "MOVABLE"
                 for edge in Problem.edges[node.connecting_edges]
                     phi = edge_angle(edge)
-                    order = edge_node_order(edge, node)
 
                     # No movement in movable direction means the dot product of movement
                     # vector with flipped displacement vector is 0
                     # Flipped because displacement vector should be same direction as movement
-                    j = linking_index(edge, order)
+                    j = linking_index(edge, node)
                     dx = node.movable_direction[1]; dy = node.movable_direction[2]
                     
                     C[j,i] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
@@ -265,24 +263,40 @@ module Beam2D
         edge.nodes[1].number == node.number ? "first" : "last"
     end
 
+    function fixed_index(edge, node)
+        order = edge_node_order(edge, node)
+        inds = order == "first" ? 
+            [
+                edge.index_start, 
+                edge.index_start + length(edge.grid),
+                edge.index_start + length(edge.grid)+1
+            ] : 
+            [
+                edge.index_start + length(edge.grid)-1,
+                edge.index_start + 2*length(edge.grid),
+                edge.index_start + 2*length(edge.grid)+1
+            ]
+        return inds
+    end
+
     # Returns the indices for the linking condition for the edge with order "last" or "first"
     # Is the same indices for the force (i think)
     function linking_index(edge, node)
         order = edge_node_order(edge, node)
-        idx = order == "first" ? 
+        inds = order == "first" ? 
             [edge.index_start, 
                 edge.index_start + length(edge.grid)] :
             [edge.index_start + length(edge.grid) - 1,
                 edge.index_start + length(edge.grid)*3 - 2]
-        return idx
+        return inds
     end
 
     function stiffness_index(edge, node)
         order = edge_node_order(edge, node)
-        idx = order == "last" ? 
+        inds = order == "last" ? 
             edge.index_start + length(edge.grid)*3 - 1 :
             edge.index_start + length(edge.grid) + 1 
-        return idx
+        return inds
     end
 
     function edge_angle(edge::Edge)
