@@ -2,6 +2,8 @@ module Beam2D
 	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
 	import IterTools, Arpack #External imports
 
+    using PyCall
+
     mutable struct Node
         type::String
         coord::Vector{Float64}
@@ -32,6 +34,7 @@ module Beam2D
         nodes::Vector{Node}
         grid::Vector{Float64}
         gridlen::Int64
+        len::Float64
         index_start::Int64
     end
 
@@ -101,7 +104,7 @@ module Beam2D
             L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
             gridpoints = 2
             grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam with 
-            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), index_cnt)
+            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
 
@@ -169,7 +172,7 @@ module Beam2D
         r = 0
         for node in Problem.nodes
             if node.type == "FIXED"
-                r += 3
+                r += length(node.connecting_edges)*3 # 3 conditions per connecting edge
                 # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
@@ -188,22 +191,24 @@ module Beam2D
         i = 1
         for node in Problem.nodes
             if node.type == "FIXED"
-                j1,j2,j3 = fixed_index(Problem.edges[node.connecting_edges[1]], node)
-                
-                # v
-                C[j1,i] = 1
-                i += 1
-                
-                # w 
-                C[j2,i] = 1
-                i += 1
-                
-                # w'
-                C[j3,i] = 1
-                i += 1
+                for edge in Problem.edges[node.connecting_edges]
+                    j1,j2,j3 = fixed_index(edge, node)
+                    
+                    # v
+                    C[j1,i] = 1
+                    i += 1
+                    
+                    # w 
+                    C[j2,i] = 1
+                    i += 1
+                    
+                    # w'
+                    C[j3,i] = 1
+                    i += 1
 
-                # Add the connecting edges as well!
-                # i = connecting_edges_conditions!(Problem, node, C, i)
+                    # Add the connecting edges as well!
+                    # i = connecting_edges_conditions!(Problem, node, C, i)
+                end
             elseif node.type == "MOVABLE"
                 for edge in Problem.edges[node.connecting_edges]
                     phi = edge_angle(edge)
@@ -380,6 +385,27 @@ module Beam2D
             new(problem,shape,Me,Se,qe)
         end
 	end
+
+    function getC(sys::System)
+        n,r = sys.shape
+        sys.Se[1:n,n+1:n+r]
+    end
+
+    function nspace(A::AbstractMatrix)
+        sympy = pyimport("sympy")
+        obj = sympy.Matrix(A).nullspace()
+        convert.(Vector{Float64},obj)
+    end
+
+    function non0inds(v::Vector{Float64})
+        B = []
+        for (i,_) in enumerate(v)
+            if v[i] != 0
+                push!(B,i)
+            end
+        end
+        B
+    end
 
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
