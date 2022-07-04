@@ -254,12 +254,16 @@ module Beam2D
                 phi = edge_angle(edge)
 
                 # No movement in movable direction means the dot product of movement
-                # vector with flipped displacement vector is 0
-                # Flipped because displacement vector should be same direction as movement
+                # vector with rotated displacement vector 90^o is 0
                 j = linking_index(edge, node)
                 dx = node.movable_direction[1]; dy = node.movable_direction[2]
                 
-                C[j,i] = [dy*cos(phi) + dx*sin(phi), -dy*sin(phi) + dx*cos(phi)]
+                rot = [cos(pi/2) -sin(pi/2); sin(pi/2) cos(pi/2)]
+                m_orth = (rot*[dx;dy])'
+                v_mov = m_orth*[cos(phi);sin(phi)]
+                w_mov = m_orth*[-sin(phi);cos(phi)]
+
+                C[j,i] = [v_mov, w_mov]
                 i += 1
 
                 # Even movable nodes can have more than one connecting edge 
