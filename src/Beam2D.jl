@@ -216,7 +216,7 @@ module Beam2D
                 # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
-                r += n_cnct_edges # one bearing condition per connecting edge
+                r += 1 # one bearing condition for edge 1
                 if n_cnct_edges >= 2
                     r += (n_cnct_edges - 1)*3
                 end
@@ -250,21 +250,20 @@ module Beam2D
                     # i = connecting_edges_conditions!(Problem, node, C, i)
                 end
             elseif node.type == "MOVABLE"
-                for edge in Problem.edges[node.connecting_edges]
-                    phi = edge_angle(edge)
+                edge = Problem.edges[node.connecting_edges[1]]
+                phi = edge_angle(edge)
 
-                    # No movement in movable direction means the dot product of movement
-                    # vector with flipped displacement vector is 0
-                    # Flipped because displacement vector should be same direction as movement
-                    j = linking_index(edge, node)
-                    dx = node.movable_direction[1]; dy = node.movable_direction[2]
-                    
-                    C[j,i] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
-                    i += 1
-                end
+                # No movement in movable direction means the dot product of movement
+                # vector with flipped displacement vector is 0
+                # Flipped because displacement vector should be same direction as movement
+                j = linking_index(edge, node)
+                dx = node.movable_direction[1]; dy = node.movable_direction[2]
+                
+                C[j,i] = [dy*cos(phi) + dx*sin(phi), -dy*sin(phi) + dx*cos(phi)]
+                i += 1
+
                 # Even movable nodes can have more than one connecting edge 
                 # and then we need stiffness and linking again
-                # Q: Should stiffness condition hold here really?
                 i = connecting_edges_conditions!(Problem, node, C, i)
             else # "FORCE/FREE"
                 if node.type == "FORCE"
@@ -319,8 +318,8 @@ module Beam2D
             ] : 
             [
                 edge.index_start + edge.gridlen-1,
-                edge.index_start + 2*edge.gridlen,
-                edge.index_start + 2*edge.gridlen+1
+                edge.index_start + edge.gridlen*3-2,
+                edge.index_start + edge.gridlen*3-1
             ]
         return inds
     end
