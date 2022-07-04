@@ -1,7 +1,7 @@
 include("Beam1D.jl")
 import Plots
 
-#Initial condition
+#Initial conditions
 pars = (mu=x->1,EI=x->1,q=x->-10)
 BCs  = Dict((0,'H')=>0,
             (0,'G')=>0,
