@@ -299,14 +299,15 @@ module Beam2D
 		qe      ::Vector{Float64}
 
 		function System(problem::Problem)
-            n = sum([length(edge.grid)*3 for edge in problem.edges])
+            n_iv = 6*length(problem.edges)
+            n_bv = 4*length(problem.edges)
 
             C,f = C_matrix_construction(problem)
             r = size(C)[2]
 
-            Me = spzeros(n+r,n+r)
-            Se = spzeros(n+r,n+r)
-            qe = zeros(Float64,n+r)
+            Me = spzeros(n_iv+r,n_iv+r)
+            Se = spzeros(n_iv+r,n_iv+r)
+            qe = zeros(Float64,n_iv+r)
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
@@ -375,7 +376,7 @@ module Beam2D
         for i,edge in enumerate(problem.edges)
             (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
 
-            e = edge.nodes[1].coord - edge.nodes[2].coord
+            e = edge.nodes[2].coord - edge.nodes[1].coord
             R = [e[1] -e[2]; e[2] e[1]]./norm(e)
             h = norm(e) + x0 + x1
 
@@ -389,6 +390,10 @@ module Beam2D
         end
 
         return xs, ys
+    end
+
+    function solve_st(sys::System) #Stationary solver
+        return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
     end
 
     function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
