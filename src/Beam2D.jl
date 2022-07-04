@@ -31,6 +31,7 @@ module Beam2D
     struct Edge
         nodes::Vector{Node}
         grid::Vector{Float64}
+        gridlen::Int64
         index_start::Int64
     end
 
@@ -100,7 +101,7 @@ module Beam2D
             L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
             gridpoints = 2
             grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam with 
-            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, index_cnt)
+            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), index_cnt)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
 
@@ -268,13 +269,13 @@ module Beam2D
         inds = order == "first" ? 
             [
                 edge.index_start, 
-                edge.index_start + length(edge.grid),
-                edge.index_start + length(edge.grid)+1
+                edge.index_start + edge.gridlen,
+                edge.index_start + edge.gridlen+1
             ] : 
             [
-                edge.index_start + length(edge.grid)-1,
-                edge.index_start + 2*length(edge.grid),
-                edge.index_start + 2*length(edge.grid)+1
+                edge.index_start + edge.gridlen-1,
+                edge.index_start + 2*edge.gridlen,
+                edge.index_start + 2*edge.gridlen+1
             ]
         return inds
     end
@@ -285,17 +286,17 @@ module Beam2D
         order = edge_node_order(edge, node)
         inds = order == "first" ? 
             [edge.index_start, 
-                edge.index_start + length(edge.grid)] :
-            [edge.index_start + length(edge.grid) - 1,
-                edge.index_start + length(edge.grid)*3 - 2]
+                edge.index_start + edge.gridlen] :
+            [edge.index_start + edge.gridlen - 1,
+                edge.index_start + edge.gridlen*3 - 2]
         return inds
     end
 
     function stiffness_index(edge, node)
         order = edge_node_order(edge, node)
         inds = order == "last" ? 
-            edge.index_start + length(edge.grid)*3 - 1 :
-            edge.index_start + length(edge.grid) + 1 
+            edge.index_start + edge.gridlen*3 - 1 :
+            edge.index_start + edge.gridlen + 1 
         return inds
     end
 
@@ -313,7 +314,7 @@ module Beam2D
 		qe      ::Vector{Float64}
 
 		function System(problem::Problem)
-            n = sum([length(edge.grid)*3 for edge in problem.edges])
+            n = sum([edge.gridlen*3 for edge in problem.edges])
 
             C,f = C_matrix_construction(problem)
             r = size(C)[2]
@@ -355,9 +356,9 @@ module Beam2D
             for edge in problem.edges
                 partitions = [
                     # Longitudinal equation
-                    edge.index_start:edge.index_start+length(edge.grid)-1,
+                    edge.index_start:edge.index_start+edge.gridlen-1,
                     # Transversal equation
-                    edge.index_start+length(edge.grid):edge.index_start+length(edge.grid)*3-1,
+                    edge.index_start+edge.gridlen:edge.index_start+edge.gridlen*3-1,
                 ]
                 for j in 1:2 # Longitudinal / Transversal
                     partition = partitions[j]
@@ -386,7 +387,7 @@ module Beam2D
         xs = Vector{Function}(undef,length(problem.edges))
         ys = Vector{Function}(undef,length(problem.edges))
 
-        for i,edge in enumerate(problem.edges)
+        for (i,edge) in enumerate(problem.edges)
             (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
 
             e = edge.nodes[1].coord - edge.nodes[2].coord
