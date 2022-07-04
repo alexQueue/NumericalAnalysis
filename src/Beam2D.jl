@@ -428,6 +428,16 @@ module Beam2D
         end
 	end
 
+    function plot_static(sys::System)
+        u = sys.Se\sys.qe
+        xs,ys = u_to_Vh(sys.problem, u)
+        xs_undeformed,ys_undeformed = u_to_Vh(sys.problem, zeros(size(u)...))
+        p = plot()
+        plot!(xs_undeformed,ys_undeformed,0,1,color="black",label=false,linewidth=2,linestyle=:dot)
+        plot!(xs,ys,0,1,color="black",label=false,linewidth=2)
+        p
+    end
+
     function vibrate_frame(sys::System,times::Vector{Float64},savefile::String;fps::Int64=15)
         u = sys.Se\sys.qe
         IC = [u zeros(size(u)...,2)]
@@ -449,23 +459,38 @@ module Beam2D
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 
-        xs = Vector{Function}(undef,length(problem.edges))
-        ys = Vector{Function}(undef,length(problem.edges))
+        n_elements = sum([edge.gridlen-1 for edge in problem.edges])
 
-        for (i,edge) in enumerate(problem.edges)
-            (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
+        xs = Vector{Function}(undef,n_elements)
+        ys = Vector{Function}(undef,n_elements)
 
-            e = edge.nodes[2].coord - edge.nodes[1].coord
-            R = [e[1] -e[2]; e[2] e[1]]./norm(e)
-            h = norm(e) + x0 + x1
+        i = 1
+        for edge in problem.edges
+            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord
+            edge_start = edge.nodes[1].coord
+            pos(t) = edge_start + t*edge_dir
 
-            q0_x,q0_y = edge.nodes[1].coord .+ R * [x0,y0]
-            q1_x,q1_y = edge.nodes[2].coord .+ R * [x1,y1]
-            u0_x,u0_y = R * [1,g0] .* h
-            u1_x,u1_y = R * [1,g1] .* h
+            for element_nr in 1:edge.gridlen-1
+                pos1 = pos((element_nr-1)/(edge.gridlen-1))
+                pos2 = pos(element_nr/(edge.gridlen-1))
 
-            xs[i] = t -> LinearAlgebra.dot([q0_x,u0_x,q1_x,u1_x],phi(t))
-            ys[i] = t -> LinearAlgebra.dot([q0_y,u0_y,q1_y,u1_y],phi(t))
+                v_inds = edge.index_start + element_nr - 1 .+ (0:1)
+                w_inds = (edge.index_start + edge.gridlen) .+ (2*(element_nr-1):2*(element_nr-1)+3)
+                (x0,x1,y0,g0,y1,g1) = u[[v_inds...,w_inds...]]
+
+                e = edge.nodes[2].coord - edge.nodes[1].coord
+                R = [e[1] -e[2]; e[2] e[1]]./norm(e)
+                h = norm(e) + x0 + x1
+
+                q0_x,q0_y = pos1 .+ R * [x0,y0]
+                q1_x,q1_y = pos2 .+ R * [x1,y1]
+                u0_x,u0_y = R * [1,g0] .* h
+                u1_x,u1_y = R * [1,g1] .* h
+
+                xs[i] = t -> LinearAlgebra.dot([q0_x,u0_x,q1_x,u1_x],phi(t))
+                ys[i] = t -> LinearAlgebra.dot([q0_y,u0_y,q1_y,u1_y],phi(t))
+                i += 1
+            end
         end
 
         return xs, ys
