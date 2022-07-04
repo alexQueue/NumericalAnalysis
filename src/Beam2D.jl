@@ -466,8 +466,8 @@ module Beam2D
     function get_vibrations(sys::System,n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
-        evals, evecs = (-1,0)
-        while any(evals .< 0)
+        evals, evecs = (0,0)
+        while any(evals .<= 0)
             evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_m))
         end
 
