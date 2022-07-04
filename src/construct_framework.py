@@ -80,7 +80,7 @@ def onclick(event):
             ax.plot([line_coords[0][0],line_coords[1][0]],[line_coords[0][1],line_coords[1][1]],color="black")
             ax.set(xlim=(0,10),ylim=(0,10))
             if node_indices[0] != node_indices[1]:
-                edges.append((node_indices[0],node_indices[1]))
+                edges.append(sorted((node_indices[0],node_indices[1])))
         
         line_coords.pop()
         line_coords.pop()

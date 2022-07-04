@@ -36,21 +36,21 @@ module Beam2D
         gridlen::Int64
         len::Float64
         index_start::Int64
+
+        E::Function
+        I::Function
+        A::Function
+        mu::Function
     end
 
     struct Problem
-		E::Function
-		I::Function
-        A::Function
-        mu::Function
         nodes::Vector{Node}
 		edges::Vector{Edge}
         shape::Tuple{Int,Int}
 
-        function Problem(
-                        E::Function, I::Function, A::Function, mu::Function,
-                        nodes::Vector{Node}, edges::Vector{Edge}
-                        )
+        function Problem(file::String)
+            nodes, edges = problem_constructor(file)
+
             last_edge = edges[end]
             size = last_edge.index_start + length(last_edge.grid)*3 - 1
             shape = (size,size)
@@ -61,7 +61,7 @@ module Beam2D
                 end
             end
 
-            new(E,I,A,mu,nodes,edges,shape)
+            new(nodes,edges,shape)
         end
 	end
 
@@ -78,11 +78,14 @@ module Beam2D
         splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 4 lists
         nodes,edges,types,params = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
 
-        nodes = strlist_to_type(Float64, nodes)
-        edges = strlist_to_type(Int, edges)
+        node_data = split.(nodes, " ")
+        nodes = [parse.(Float64, x) for x in node_data]
+
+        edges = edges_setup(edges)
+        # display(edges)
+        # return
         
         types = get_node_type_list(types)
-        # Adjacency = create_adjacency_matrix(nodes, edges)
 
         Nodes = Vector{Node}(undef, length(nodes))
         for (node,type,i) in zip(nodes,types,1:length(nodes))
@@ -98,16 +101,6 @@ module Beam2D
             end
         end
 
-        index_cnt = 1
-        Edges = Vector{Edge}(undef, length(edges))
-        for (i,edge) in enumerate(edges)
-            L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
-            gridpoints = 2
-            grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam with 
-            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt)
-            index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
-        end
-
         parameters = Dict()
         for param in params
             str,val = split(param, " ", limit=2)
@@ -115,7 +108,26 @@ module Beam2D
         end
         E = parameters["E"]; I = parameters["I"]; A = parameters["A"]; mu = parameters["mu"]
 
-        Problem(E,I,A,mu,Nodes,Edges)
+        index_cnt = 1
+        Edges = Vector{Edge}(undef, length(edges))
+        for (i,edge) in enumerate(edges)
+            L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
+            gridpoints = edge[3]
+            grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam
+
+            if edge[4] == []
+                params = [E,I,A,mu]
+            else
+                params = edge[4]
+            end
+
+            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt, params...)
+            index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
+        end
+
+
+        # Problem(Nodes,Edges)
+        return Nodes,Edges
     end
     
     function get_node_type_list(types::Vector)
@@ -150,9 +162,37 @@ module Beam2D
         types
     end
 
-    function strlist_to_type(type::Type, data::Vector)
-        data = split.(data, " ")
-        [parse.(type, x) for x in data]
+    function edges_setup(edges_data::Vector)
+        data = split.(edges_data, " ", limit=3)
+        edges = []
+
+        re_params = r"params=\[(.*),(.*),(.*),(.*)\]"
+        re_gp = r"gp=(\d*)"
+
+        for edge_data in data
+            edge = [parse(Int, x) for x in edge_data[1:2]]
+            if length(edge_data) == 2
+                push!(edge_data,"")
+            end
+            gp_match = match(re_gp, edge_data[3])
+            if gp_match !== nothing
+                gridpoints = eval(Meta.parse(gp_match.captures[1]))
+            else
+                gridpoints = 2
+            end
+            params_match = match(re_params, edge_data[3])
+            if params_match !== nothing
+                params = []
+                for capture in params_match.captures
+                    param = eval(Meta.parse("x -> " * capture))
+                    push!(params, param)
+                end
+            else
+                params = []
+            end
+            push!(edges, [edge...,gridpoints,params])
+        end
+        return edges
     end
 
     # Copied from internet obviously
@@ -286,7 +326,7 @@ module Beam2D
     end
 
     # Returns the indices for the linking condition for the edge with order "last" or "first"
-    # Is the same indices for the force (i think)
+    # Is the same indices for the force
     function linking_index(edge, node)
         order = edge_node_order(edge, node)
         inds = order == "first" ? 
@@ -346,19 +386,21 @@ module Beam2D
                        4*h/9 *f(1/2           ) +
                        5*h/18*f(1/2+sqrt(3/20))
 
-            EI(x) = problem.E(x) * problem.I(x)
-            EA(x) = problem.E(x) * problem.A(x)
-
             # Longitudinal - Transversal ordering
-            E_s = [EA,EI]
             M_base_fncs = [phi_L_0, phi_T_0]
             S_base_fncs = [phi_L_1, phi_T_2]
 
-			# Local System for element [o,o+h], with t in [0,1]
-			M_loc(h,o,base_fnc) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*problem.mu(o+h*t))
+            # Local System for S for element [o,o+h], with t in [0,1]
             S_loc(h,o,base_fnc,E_) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*E_(o+h*t))
-
+            
             for edge in problem.edges
+                EI(x) = edge.E(x) * edge.I(x)
+                EA(x) = edge.E(x) * edge.A(x)
+                E_s = [EA,EI]
+
+                # Local System for M for element [o,o+h], with t in [0,1]
+                M_loc(h,o,base_fnc) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*edge.mu(o+h*t))
+
                 partitions = [
                     # Longitudinal equation
                     edge.index_start:edge.index_start+edge.gridlen-1,
@@ -386,28 +428,7 @@ module Beam2D
         end
 	end
 
-    function getC(sys::System)
-        n,r = sys.shape
-        sys.Se[1:n,n+1:n+r]
-    end
-
-    function nspace(A::AbstractMatrix)
-        sympy = pyimport("sympy")
-        obj = sympy.Matrix(A).nullspace()
-        convert.(Vector{Float64},obj)
-    end
-
-    function non0inds(v::Vector{Float64})
-        B = []
-        for (i,_) in enumerate(v)
-            if v[i] != 0
-                push!(B,i)
-            end
-        end
-        B
-    end
-
-    function vibrate_frame(sys::System,times::Vector{Float64},savefile::String)
+    function vibrate_frame(sys::System,times::Vector{Float64},savefile::String;fps::Int64=15)
         u = sys.Se\sys.qe
         IC = [u zeros(size(u)...,2)]
 
@@ -421,7 +442,7 @@ module Beam2D
             plot(xys_undeformed[1],xys_undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
             plot!(xys[j][1],xys[j][2],0,1,color="black",label=false,linewidth=2)
         end
-        gif(anim, savefile, fps=15)
+        gif(anim, savefile, fps=fps)
         sys.qe[:] = qe
     end
     
