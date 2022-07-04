@@ -2,6 +2,8 @@ module Beam2D
 	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
 	import IterTools, Arpack #External imports
 
+    using PyCall
+
     mutable struct Node
         type::String
         coord::Vector{Float64}
@@ -31,6 +33,8 @@ module Beam2D
     struct Edge
         nodes::Vector{Node}
         grid::Vector{Float64}
+        gridlen::Int64
+        len::Float64
         index_start::Int64
     end
 
@@ -100,7 +104,7 @@ module Beam2D
             L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
             gridpoints = 2
             grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam with 
-            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, index_cnt)
+            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
 
@@ -168,8 +172,8 @@ module Beam2D
         r = 0
         for node in Problem.nodes
             if node.type == "FIXED"
-                r += 3
-                r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
+                r += length(node.connecting_edges)*3 # 3 conditions per connecting edge
+                # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
                 r += n_cnct_edges # one bearing condition per connecting edge
@@ -187,32 +191,32 @@ module Beam2D
         i = 1
         for node in Problem.nodes
             if node.type == "FIXED"
-                # v
-                j = Problem.edges[node.connecting_edges[1]].index_start
-                C[j,i] = 1
-                i += 1
-                
-                # w
-                j += length(Problem.edges[node.connecting_edges[1]].grid)
-                C[j,i] = 1
-                i += 1
-                
-                # w'
-                j += 1
-                C[j,i] = 1
-                i += 1
+                for edge in Problem.edges[node.connecting_edges]
+                    j1,j2,j3 = fixed_index(edge, node)
+                    
+                    # v
+                    C[j1,i] = 1
+                    i += 1
+                    
+                    # w 
+                    C[j2,i] = 1
+                    i += 1
+                    
+                    # w'
+                    C[j3,i] = 1
+                    i += 1
 
-                # Add the connecting edges as well!
-                i = connecting_edges_conditions!(Problem, node, C, i)
+                    # Add the connecting edges as well!
+                    # i = connecting_edges_conditions!(Problem, node, C, i)
+                end
             elseif node.type == "MOVABLE"
                 for edge in Problem.edges[node.connecting_edges]
                     phi = edge_angle(edge)
-                    order = edge_node_order(edge, node)
 
                     # No movement in movable direction means the dot product of movement
                     # vector with flipped displacement vector is 0
                     # Flipped because displacement vector should be same direction as movement
-                    j = linking_index(edge, order)
+                    j = linking_index(edge, node)
                     dx = node.movable_direction[1]; dy = node.movable_direction[2]
                     
                     C[j,i] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
@@ -265,24 +269,40 @@ module Beam2D
         edge.nodes[1].number == node.number ? "first" : "last"
     end
 
+    function fixed_index(edge, node)
+        order = edge_node_order(edge, node)
+        inds = order == "first" ? 
+            [
+                edge.index_start, 
+                edge.index_start + edge.gridlen,
+                edge.index_start + edge.gridlen+1
+            ] : 
+            [
+                edge.index_start + edge.gridlen-1,
+                edge.index_start + 2*edge.gridlen,
+                edge.index_start + 2*edge.gridlen+1
+            ]
+        return inds
+    end
+
     # Returns the indices for the linking condition for the edge with order "last" or "first"
     # Is the same indices for the force (i think)
     function linking_index(edge, node)
         order = edge_node_order(edge, node)
-        idx = order == "first" ? 
+        inds = order == "first" ? 
             [edge.index_start, 
-                edge.index_start + length(edge.grid)] :
-            [edge.index_start + length(edge.grid) - 1,
-                edge.index_start + length(edge.grid)*3 - 2]
-        return idx
+                edge.index_start + edge.gridlen] :
+            [edge.index_start + edge.gridlen - 1,
+                edge.index_start + edge.gridlen*3 - 2]
+        return inds
     end
 
     function stiffness_index(edge, node)
         order = edge_node_order(edge, node)
-        idx = order == "last" ? 
-            edge.index_start + length(edge.grid)*3 - 1 :
-            edge.index_start + length(edge.grid) + 1 
-        return idx
+        inds = order == "last" ? 
+            edge.index_start + edge.gridlen*3 - 1 :
+            edge.index_start + edge.gridlen + 1 
+        return inds
     end
 
     function edge_angle(edge::Edge)
@@ -299,8 +319,7 @@ module Beam2D
 		qe      ::Vector{Float64}
 
 		function System(problem::Problem)
-            n_iv = 6*length(problem.edges)
-            n_bv = 4*length(problem.edges)
+            n = sum([edge.gridlen*3 for edge in problem.edges])
 
             C,f = C_matrix_construction(problem)
             r = size(C)[2]
@@ -342,9 +361,9 @@ module Beam2D
             for edge in problem.edges
                 partitions = [
                     # Longitudinal equation
-                    edge.index_start:edge.index_start+length(edge.grid)-1,
+                    edge.index_start:edge.index_start+edge.gridlen-1,
                     # Transversal equation
-                    edge.index_start+length(edge.grid):edge.index_start+length(edge.grid)*3-1,
+                    edge.index_start+edge.gridlen:edge.index_start+edge.gridlen*3-1,
                 ]
                 for j in 1:2 # Longitudinal / Transversal
                     partition = partitions[j]
@@ -367,13 +386,34 @@ module Beam2D
         end
 	end
 
+    function getC(sys::System)
+        n,r = sys.shape
+        sys.Se[1:n,n+1:n+r]
+    end
+
+    function nspace(A::AbstractMatrix)
+        sympy = pyimport("sympy")
+        obj = sympy.Matrix(A).nullspace()
+        convert.(Vector{Float64},obj)
+    end
+
+    function non0inds(v::Vector{Float64})
+        B = []
+        for (i,_) in enumerate(v)
+            if v[i] != 0
+                push!(B,i)
+            end
+        end
+        B
+    end
+
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 
         xs = Vector{Function}(undef,length(problem.edges))
         ys = Vector{Function}(undef,length(problem.edges))
 
-        for i,edge in enumerate(problem.edges)
+        for (i,edge) in enumerate(problem.edges)
             (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
 
             e = edge.nodes[2].coord - edge.nodes[1].coord
