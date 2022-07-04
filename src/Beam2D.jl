@@ -1,5 +1,5 @@
 module Beam2D
-	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
+	using SparseArrays,Printf,LinearAlgebra,Plots #Stdlib imports
 	import IterTools, Arpack #External imports
 
     using PyCall
@@ -324,9 +324,9 @@ module Beam2D
             C,f = C_matrix_construction(problem)
             r = size(C)[2]
 
-            Me = spzeros(n_iv+r,n_iv+r)
-            Se = spzeros(n_iv+r,n_iv+r)
-            qe = zeros(Float64,n_iv+r)
+            Me = spzeros(n+r,n+r)
+            Se = spzeros(n+r,n+r)
+            qe = zeros(Float64,n+r)
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
@@ -407,6 +407,20 @@ module Beam2D
         B
     end
 
+    function vibrate_frame(sys::System,times::Vector{Float64},savefile::String)
+        u = sys.Se\sys.qe
+        IC = [u zeros(size(u)...,2)]
+
+        xys = solve_dy_Newmark(sys,IC,times)
+        xys_undeformed = u_to_Vh(sys.problem,zeros(size(u)...))
+        p = plot()
+        plot(xys_undeformed[1],xys_undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
+        anim = @animate for (j,t) in enumerate(times)
+            plot!(xys[j][1],xys[j][2],0,1,color="black",label=false,linewidth=2)
+        end
+        gif(anim, savefile, fps=15)
+    end
+    
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 
@@ -432,20 +446,17 @@ module Beam2D
         return xs, ys
     end
 
-    function solve_st(sys::System) #Stationary solver
-        return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
-    end
-
     function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
-        @assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
+        N = sum(sys.shape)
+        @assert size(IC) == (N,3) "Wrong IC size for given system"
         @assert length(times) >= 2 "Must have an initial and final time"
         @assert all(diff(times) .> 0) "Times must be ascending"
         
         n_t = length(times)
         
-        u_0 = Array{Float64,2}(undef,sys.shape[2],n_t)
-        u_1 = Array{Float64,2}(undef,sys.shape[2],n_t)
-        u_2 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        u_0 = Array{Float64,2}(undef,N,n_t)
+        u_1 = Array{Float64,2}(undef,N,n_t)
+        u_2 = Array{Float64,2}(undef,N,n_t)
         
         u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
 
@@ -460,7 +471,7 @@ module Beam2D
             u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
         end
     
-        return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
+        return [u_to_Vh(sys.problem,u) for u in eachcol(u_0)]
     end
 
     function get_vibrations(sys::System,n_m::Int64=4)
