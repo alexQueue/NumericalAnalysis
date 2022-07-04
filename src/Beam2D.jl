@@ -411,14 +411,18 @@ module Beam2D
         u = sys.Se\sys.qe
         IC = [u zeros(size(u)...,2)]
 
+        qe = copy(sys.qe)
+        sys.qe[:] .= 0
+
         xys = solve_dy_Newmark(sys,IC,times)
         xys_undeformed = u_to_Vh(sys.problem,zeros(size(u)...))
-        p = plot()
-        plot(xys_undeformed[1],xys_undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
+
         anim = @animate for (j,t) in enumerate(times)
+            plot(xys_undeformed[1],xys_undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
             plot!(xys[j][1],xys[j][2],0,1,color="black",label=false,linewidth=2)
         end
         gif(anim, savefile, fps=15)
+        sys.qe[:] = qe
     end
     
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
@@ -483,7 +487,7 @@ module Beam2D
         end
 
         freqs = evals.^(-0.5)
-        modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
+        modes = u_to_Vh.(Ref(sys.problem),eachcol(evecs))
         
         return evals, evecs, freqs, modes
     end
