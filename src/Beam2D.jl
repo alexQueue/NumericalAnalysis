@@ -3,6 +3,10 @@ module Beam2D
 	import IterTools, Arpack #External imports
 
     using PyCall
+    using Conda
+    Conda.add("scipy")
+    global spsparse = pyimport("scipy.sparse")
+    global splinalg = pyimport("scipy.sparse.linalg")
 
     mutable struct Node
         type::String
@@ -245,9 +249,6 @@ module Beam2D
                     # w'
                     C[j3,i] = 1
                     i += 1
-
-                    # Add the connecting edges as well!
-                    # i = connecting_edges_conditions!(Problem, node, C, i)
                 end
             elseif node.type == "MOVABLE"
                 edge = Problem.edges[node.connecting_edges[1]]
@@ -275,7 +276,8 @@ module Beam2D
                     angle = edge_angle(edge)
                     j1,j2 = linking_index(edge, node)
                     fx = node.force[1]; fy = node.force[2]
-                    f[[j1,j2]] = [fx*cos(angle) + fy*sin(angle), -fx*sin(angle) + fy*cos(angle)]
+
+                    f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy]
                 end
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
@@ -458,6 +460,37 @@ module Beam2D
         gif(anim, savefile, fps=fps)
         sys.qe[:] = qe
     end
+
+    function vibrate_frame_eig(sys::System, savefile::String;n_m::Int64=4, fps::Int64=15)
+        XY, get_T = solve_dy_eigen(sys, n_m)
+
+        u = sys.Se\sys.qe
+        IC = [u zeros(size(u)...,2)]
+        T = get_T(IC)
+
+        T_t = T(0.0)
+        # display([T_t.*f(0) for f in XY[1][1]])
+        xs = [xy[1] for xy in XY]
+        ys = [xy[2] for xy in XY]
+
+        x(s) = [[f(0) for f in x_mode] for x_mode in xs]
+        display(T_t)
+        dd(s) = sum(T_t) * x(s)
+        display(dd(0))
+        # display(xt)
+
+        # ts = collect(LinRange(0,10,10))
+        # anim = @animate for t in ts
+        #     T_t = T(t)
+        #     xs = 0
+        # end
+
+        return XY,get_T
+        # anim = @animate for mode in modes
+        #     plot(mode[1],mode[2],0,1,color="black",label=false,linewidth=2)
+        # end
+        # gif(anim, savefile, fps=fps)
+    end
     
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
@@ -530,10 +563,10 @@ module Beam2D
     function get_vibrations(sys::System,n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
-        evals, evecs = (0,0)
-        while any(evals .<= 0)
-            evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_m))
-        end
+        Me = spsparse.csc_matrix(sys.Me)
+        Se = spsparse.csc_matrix(sys.Se)
+
+        evals, evecs = real.(splinalg.eigs(Me,k=n_m,M=Se))
 
         freqs = evals.^(-0.5)
         modes = u_to_Vh.(Ref(sys.problem),eachcol(evecs))
@@ -544,10 +577,11 @@ module Beam2D
     function solve_dy_eigen(sys::System,n_m::Int64=4)
         evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
         
-        X(x::Float64) = [mode(x) for mode in modes]
+        # XY = [[x -> mode(x), x -> mode[2](x)] for mode in modes]
+        XY = [[mode[1], mode[2]] for mode in modes]
 
         function get_T(IC::Matrix{Float64})
-            @assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+            @assert size(IC) == (sys.shape[2]+sys.shape[1],3) "Wrong IC size for given system"
 
             as = evecs\IC[:,1]
             bs = (evecs\IC[:,2])./freqs
@@ -557,6 +591,6 @@ module Beam2D
             return T
         end
 
-        return X, get_T
+        return XY, get_T
     end
 end
