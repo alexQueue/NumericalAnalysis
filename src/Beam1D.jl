@@ -97,8 +97,8 @@ module Beam1D
 		                                     IterTools.partition(grid      ,2,1),
 		                                     IterTools.partition(u[1:end-4],4,2))
 			h = x1-x0
-			xs[i] = t -> LinearAlgebra.dot([x0,   h,x1,   h],phi(t))
-			ys[i] = t -> LinearAlgebra.dot([y0,g0*h,y1,g1*h],phi(t))
+			xs[i] = t -> dot([x0,   h,x1,   h],phi(t))
+			ys[i] = t -> dot([y0,g0*h,y1,g1*h],phi(t))
 		end
 
 		return xs, ys
