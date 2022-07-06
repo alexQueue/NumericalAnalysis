@@ -43,7 +43,7 @@ X,get_T = Beam1D.solve_dy_eigen(sys)
 T       = get_T(IC)
 X_xs    = X.(xs)
 X_grid  = X.(grid)
-# display(typeof(X_xs))
+display(typeof(X_xs))
 
 anim = Plots.@animate for t in ts
     T_t = T(t)'

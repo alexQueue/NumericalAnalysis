@@ -1,8 +1,12 @@
 module Beam2D
-	using SparseArrays,Printf,LinearAlgebra #Stdlib imports
+	using SparseArrays,Printf,LinearAlgebra,Plots #Stdlib imports
 	import IterTools, Arpack #External imports
 
     using PyCall
+    using Conda
+    Conda.add("scipy")
+    global spsparse = pyimport("scipy.sparse")
+    global splinalg = pyimport("scipy.sparse.linalg")
 
     mutable struct Node
         type::String
@@ -36,21 +40,21 @@ module Beam2D
         gridlen::Int64
         len::Float64
         index_start::Int64
+
+        E::Function
+        I::Function
+        A::Function
+        mu::Function
     end
 
     struct Problem
-		E::Function
-		I::Function
-        A::Function
-        mu::Function
         nodes::Vector{Node}
 		edges::Vector{Edge}
         shape::Tuple{Int,Int}
 
-        function Problem(
-                        E::Function, I::Function, A::Function, mu::Function,
-                        nodes::Vector{Node}, edges::Vector{Edge}
-                        )
+        function Problem(file::String)
+            nodes, edges = problem_constructor(file)
+
             last_edge = edges[end]
             size = last_edge.index_start + length(last_edge.grid)*3 - 1
             shape = (size,size)
@@ -61,7 +65,7 @@ module Beam2D
                 end
             end
 
-            new(E,I,A,mu,nodes,edges,shape)
+            new(nodes,edges,shape)
         end
 	end
 
@@ -78,11 +82,14 @@ module Beam2D
         splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 4 lists
         nodes,edges,types,params = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
 
-        nodes = strlist_to_type(Float64, nodes)
-        edges = strlist_to_type(Int, edges)
+        node_data = split.(nodes, " ")
+        nodes = [parse.(Float64, x) for x in node_data]
+
+        edges = edges_setup(edges)
+        # display(edges)
+        # return
         
         types = get_node_type_list(types)
-        # Adjacency = create_adjacency_matrix(nodes, edges)
 
         Nodes = Vector{Node}(undef, length(nodes))
         for (node,type,i) in zip(nodes,types,1:length(nodes))
@@ -98,16 +105,6 @@ module Beam2D
             end
         end
 
-        index_cnt = 1
-        Edges = Vector{Edge}(undef, length(edges))
-        for (i,edge) in enumerate(edges)
-            L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
-            gridpoints = 2
-            grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam with 
-            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt)
-            index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
-        end
-
         parameters = Dict()
         for param in params
             str,val = split(param, " ", limit=2)
@@ -115,7 +112,26 @@ module Beam2D
         end
         E = parameters["E"]; I = parameters["I"]; A = parameters["A"]; mu = parameters["mu"]
 
-        Problem(E,I,A,mu,Nodes,Edges)
+        index_cnt = 1
+        Edges = Vector{Edge}(undef, length(edges))
+        for (i,edge) in enumerate(edges)
+            L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
+            gridpoints = edge[3]
+            grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam
+
+            if edge[4] == []
+                params = [E,I,A,mu]
+            else
+                params = edge[4]
+            end
+
+            Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt, params...)
+            index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
+        end
+
+
+        # Problem(Nodes,Edges)
+        return Nodes,Edges
     end
     
     function get_node_type_list(types::Vector)
@@ -150,9 +166,37 @@ module Beam2D
         types
     end
 
-    function strlist_to_type(type::Type, data::Vector)
-        data = split.(data, " ")
-        [parse.(type, x) for x in data]
+    function edges_setup(edges_data::Vector)
+        data = split.(edges_data, " ", limit=3)
+        edges = []
+
+        re_params = r"params=\[(.*),(.*),(.*),(.*)\]"
+        re_gp = r"gp=(\d*)"
+
+        for edge_data in data
+            edge = [parse(Int, x) for x in edge_data[1:2]]
+            if length(edge_data) == 2
+                push!(edge_data,"")
+            end
+            gp_match = match(re_gp, edge_data[3])
+            if gp_match !== nothing
+                gridpoints = eval(Meta.parse(gp_match.captures[1]))
+            else
+                gridpoints = 2
+            end
+            params_match = match(re_params, edge_data[3])
+            if params_match !== nothing
+                params = []
+                for capture in params_match.captures
+                    param = eval(Meta.parse("x -> " * capture))
+                    push!(params, param)
+                end
+            else
+                params = []
+            end
+            push!(edges, [edge...,gridpoints,params])
+        end
+        return edges
     end
 
     # Copied from internet obviously
@@ -176,7 +220,7 @@ module Beam2D
                 # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
-                r += n_cnct_edges # one bearing condition per connecting edge
+                r += 1 # one bearing condition for edge 1
                 if n_cnct_edges >= 2
                     r += (n_cnct_edges - 1)*3
                 end
@@ -205,26 +249,26 @@ module Beam2D
                     # w'
                     C[j3,i] = 1
                     i += 1
-
-                    # Add the connecting edges as well!
-                    # i = connecting_edges_conditions!(Problem, node, C, i)
                 end
             elseif node.type == "MOVABLE"
-                for edge in Problem.edges[node.connecting_edges]
-                    phi = edge_angle(edge)
+                edge = Problem.edges[node.connecting_edges[1]]
+                phi = edge_angle(edge)
 
-                    # No movement in movable direction means the dot product of movement
-                    # vector with flipped displacement vector is 0
-                    # Flipped because displacement vector should be same direction as movement
-                    j = linking_index(edge, node)
-                    dx = node.movable_direction[1]; dy = node.movable_direction[2]
-                    
-                    C[j,i] = [dx*cos(phi) + dy*sin(phi), -dx*sin(phi) + dy*cos(phi)]
-                    i += 1
-                end
+                # No movement in movable direction means the dot product of movement
+                # vector with rotated displacement vector 90^o is 0
+                j = linking_index(edge, node)
+                dx = node.movable_direction[1]; dy = node.movable_direction[2]
+                
+                rot = [cos(pi/2) -sin(pi/2); sin(pi/2) cos(pi/2)]
+                m_orth = (rot*[dx;dy])'
+                v_mov = m_orth*[cos(phi);sin(phi)]
+                w_mov = m_orth*[-sin(phi);cos(phi)]
+
+                C[j,i] = [v_mov, w_mov]
+                i += 1
+
                 # Even movable nodes can have more than one connecting edge 
                 # and then we need stiffness and linking again
-                # Q: Should stiffness condition hold here really?
                 i = connecting_edges_conditions!(Problem, node, C, i)
             else # "FORCE/FREE"
                 if node.type == "FORCE"
@@ -232,7 +276,8 @@ module Beam2D
                     angle = edge_angle(edge)
                     j1,j2 = linking_index(edge, node)
                     fx = node.force[1]; fy = node.force[2]
-                    f[[j1,j2]] = [fx*cos(angle) + fy*sin(angle), -fx*sin(angle) + fy*cos(angle)]
+
+                    f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy]
                 end
                 i = connecting_edges_conditions!(Problem, node, C, i)
             end
@@ -279,14 +324,14 @@ module Beam2D
             ] : 
             [
                 edge.index_start + edge.gridlen-1,
-                edge.index_start + 2*edge.gridlen,
-                edge.index_start + 2*edge.gridlen+1
+                edge.index_start + edge.gridlen*3-2,
+                edge.index_start + edge.gridlen*3-1
             ]
         return inds
     end
 
     # Returns the indices for the linking condition for the edge with order "last" or "first"
-    # Is the same indices for the force (i think)
+    # Is the same indices for the force
     function linking_index(edge, node)
         order = edge_node_order(edge, node)
         inds = order == "first" ? 
@@ -324,9 +369,9 @@ module Beam2D
             C,f = C_matrix_construction(problem)
             r = size(C)[2]
 
-            Me = spzeros(n_iv+r,n_iv+r)
-            Se = spzeros(n_iv+r,n_iv+r)
-            qe = zeros(Float64,n_iv+r)
+            Me = spzeros(n+r,n+r)
+            Se = spzeros(n+r,n+r)
+            qe = zeros(Float64,n+r)
 
             Se[1:n,n+1:n+r] = C
             Se[n+1:n+r,1:n] = Transpose(C)
@@ -346,19 +391,21 @@ module Beam2D
                        4*h/9 *f(1/2           ) +
                        5*h/18*f(1/2+sqrt(3/20))
 
-            EI(x) = problem.E(x) * problem.I(x)
-            EA(x) = problem.E(x) * problem.A(x)
-
             # Longitudinal - Transversal ordering
-            E_s = [EA,EI]
             M_base_fncs = [phi_L_0, phi_T_0]
             S_base_fncs = [phi_L_1, phi_T_2]
 
-			# Local System for element [o,o+h], with t in [0,1]
-			M_loc(h,o,base_fnc) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*problem.mu(o+h*t))
+            # Local System for S for element [o,o+h], with t in [0,1]
             S_loc(h,o,base_fnc,E_) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*E_(o+h*t))
-
+            
             for edge in problem.edges
+                EI(x) = edge.E(x) * edge.I(x)
+                EA(x) = edge.E(x) * edge.A(x)
+                E_s = [EA,EI]
+
+                # Local System for M for element [o,o+h], with t in [0,1]
+                M_loc(h,o,base_fnc) = GQ3(h,t -> base_fnc(h,t)*base_fnc(h,t)'*edge.mu(o+h*t))
+
                 partitions = [
                     # Longitudinal equation
                     edge.index_start:edge.index_start+edge.gridlen-1,
@@ -386,66 +433,116 @@ module Beam2D
         end
 	end
 
-    function getC(sys::System)
-        n,r = sys.shape
-        sys.Se[1:n,n+1:n+r]
+    function plot_static(sys::System)
+        u = sys.Se\sys.qe
+        xs,ys = u_to_Vh(sys.problem, u)
+        xs_undeformed,ys_undeformed = u_to_Vh(sys.problem, zeros(size(u)...))
+        p = plot()
+        plot!(xs_undeformed,ys_undeformed,0,1,color="black",label=false,linewidth=2,linestyle=:dot)
+        plot!(xs,ys,0,1,color="black",label=false,linewidth=2)
+        p
     end
 
-    function nspace(A::AbstractMatrix)
-        sympy = pyimport("sympy")
-        obj = sympy.Matrix(A).nullspace()
-        convert.(Vector{Float64},obj)
-    end
+    function vibrate_frame(sys::System,times::Vector{Float64},savefile::String;fps::Int64=15)
+        u = sys.Se\sys.qe
+        IC = [u zeros(size(u)...,2)]
 
-    function non0inds(v::Vector{Float64})
-        B = []
-        for (i,_) in enumerate(v)
-            if v[i] != 0
-                push!(B,i)
-            end
+        qe = copy(sys.qe)
+        sys.qe[:] .= 0
+
+        xys = solve_dy_Newmark(sys,IC,times)
+        xys_undeformed = u_to_Vh(sys.problem,zeros(size(u)...))
+
+        anim = @animate for (j,t) in enumerate(times)
+            plot(xys_undeformed[1],xys_undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
+            plot!(xys[j][1],xys[j][2],0,1,color="black",label=false,linewidth=2)
         end
-        B
+        gif(anim, savefile, fps=fps)
+        sys.qe[:] = qe
     end
 
+    function vibrate_frame_eig(sys::System, savefile::String;n_m::Int64=4, fps::Int64=15)
+        XY, get_T = solve_dy_eigen(sys, n_m)
+
+        u = sys.Se\sys.qe
+        IC = [u zeros(size(u)...,2)]
+        T = get_T(IC)
+
+        T_t = T(0.0)
+        # display([T_t.*f(0) for f in XY[1][1]])
+        xs = [xy[1] for xy in XY]
+        ys = [xy[2] for xy in XY]
+
+        x(s) = [[f(0) for f in x_mode] for x_mode in xs]
+        display(T_t)
+        dd(s) = sum(T_t) * x(s)
+        display(dd(0))
+        # display(xt)
+
+        # ts = collect(LinRange(0,10,10))
+        # anim = @animate for t in ts
+        #     T_t = T(t)
+        #     xs = 0
+        # end
+
+        return XY,get_T
+        # anim = @animate for mode in modes
+        #     plot(mode[1],mode[2],0,1,color="black",label=false,linewidth=2)
+        # end
+        # gif(anim, savefile, fps=fps)
+    end
+    
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 
-        xs = Vector{Function}(undef,length(problem.edges))
-        ys = Vector{Function}(undef,length(problem.edges))
+        n_elements = sum([edge.gridlen-1 for edge in problem.edges])
 
-        for (i,edge) in enumerate(problem.edges)
-            (x0,x1,y0,g0,y1,g1) = u[edge.index_start.+(0:5)]
+        xs = Vector{Function}(undef,n_elements)
+        ys = Vector{Function}(undef,n_elements)
 
-            e = edge.nodes[2].coord - edge.nodes[1].coord
-            R = [e[1] -e[2]; e[2] e[1]]./norm(e)
-            h = norm(e) + x0 + x1
+        i = 1
+        for edge in problem.edges
+            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord
+            edge_start = edge.nodes[1].coord
+            pos(t) = edge_start + t*edge_dir
 
-            q0_x,q0_y = edge.nodes[1].coord .+ R * [x0,y0]
-            q1_x,q1_y = edge.nodes[2].coord .+ R * [x1,y1]
-            u0_x,u0_y = R * [1,g0] .* h
-            u1_x,u1_y = R * [1,g1] .* h
+            for element_nr in 1:edge.gridlen-1
+                pos1 = pos((element_nr-1)/(edge.gridlen-1))
+                pos2 = pos(element_nr/(edge.gridlen-1))
 
-            xs[i] = t -> dot([q0_x,u0_x,q1_x,u1_x],phi(t))
-            ys[i] = t -> dot([q0_y,u0_y,q1_y,u1_y],phi(t))
+                v_inds = edge.index_start + element_nr - 1 .+ (0:1)
+                w_inds = (edge.index_start + edge.gridlen) .+ (2*(element_nr-1):2*(element_nr-1)+3)
+                (x0,x1,y0,g0,y1,g1) = u[[v_inds...,w_inds...]]
+
+                e = edge.nodes[2].coord - edge.nodes[1].coord
+                R = [e[1] -e[2]; e[2] e[1]]./norm(e)
+                h = norm(e) + x0 + x1
+
+                q0_x,q0_y = pos1 .+ R * [x0,y0]
+                q1_x,q1_y = pos2 .+ R * [x1,y1]
+                u0_x,u0_y = R * [1,g0] .* h
+                u1_x,u1_y = R * [1,g1] .* h
+
+                xs[i] = t -> dot([q0_x,u0_x,q1_x,u1_x],phi(t))
+                ys[i] = t -> dot([q0_y,u0_y,q1_y,u1_y],phi(t))
+                i += 1
+            end
         end
 
         return xs, ys
     end
 
-    function solve_st(sys::System) #Stationary solver
-        return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
-    end
-
     function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
-        @assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
+        N = sum(sys.shape)
+        @assert size(IC) == (N,3) "Wrong IC size for given system"
         @assert length(times) >= 2 "Must have an initial and final time"
         @assert all(diff(times) .> 0) "Times must be ascending"
         
         n_t = length(times)
         
-        u_0 = Array{Float64,2}(undef,sys.shape[2],n_t)
-        u_1 = Array{Float64,2}(undef,sys.shape[2],n_t)
-        u_2 = Array{Float64,2}(undef,sys.shape[2],n_t)
+        u_0 = Array{Float64,2}(undef,N,n_t)
+        u_1 = Array{Float64,2}(undef,N,n_t)
+        u_2 = Array{Float64,2}(undef,N,n_t)
         
         u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
 
@@ -466,10 +563,10 @@ module Beam2D
     function get_vibrations(sys::System,n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
-        evals, evecs = (0,0)
-        while any(evals .<= 0)
-            evals, evecs = real.(Arpack.eigs(sys.Me,sys.Se,nev=n_m))
-        end
+        Me = spsparse.csc_matrix(sys.Me)
+        Se = spsparse.csc_matrix(sys.Se)
+
+        evals, evecs = real.(splinalg.eigs(Me,k=n_m,M=Se))
 
         freqs = evals.^(-0.5)
         modes = u_to_Vh.(Ref(sys.problem),eachcol(evecs))
@@ -480,10 +577,11 @@ module Beam2D
     function solve_dy_eigen(sys::System,n_m::Int64=4)
         evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
         
-        X(x::Float64) = [mode(x) for mode in modes]
+        # XY = [[x -> mode(x), x -> mode[2](x)] for mode in modes]
+        XY = [[mode[1], mode[2]] for mode in modes]
 
         function get_T(IC::Matrix{Float64})
-            @assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+            @assert size(IC) == (sys.shape[2]+sys.shape[1],3) "Wrong IC size for given system"
 
             as = evecs\IC[:,1]
             bs = (evecs\IC[:,2])./freqs
@@ -493,6 +591,6 @@ module Beam2D
             return T
         end
 
-        return X, get_T
+        return XY, get_T
     end
 end
