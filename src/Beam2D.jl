@@ -425,8 +425,8 @@ module Beam2D
             u0_x,u0_y = R * [1,g0] .* h
             u1_x,u1_y = R * [1,g1] .* h
 
-            xs[i] = t -> LinearAlgebra.dot([q0_x,u0_x,q1_x,u1_x],phi(t))
-            ys[i] = t -> LinearAlgebra.dot([q0_y,u0_y,q1_y,u1_y],phi(t))
+            xs[i] = t -> dot([q0_x,u0_x,q1_x,u1_x],phi(t))
+            ys[i] = t -> dot([q0_y,u0_y,q1_y,u1_y],phi(t))
         end
 
         return xs, ys
@@ -460,7 +460,7 @@ module Beam2D
             u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
         end
     
-        return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
+        return [u_to_Vh(sys.problem,u) for u in eachcol(u_0)]
     end
 
     function get_vibrations(sys::System,n_m::Int64=4)
@@ -472,7 +472,7 @@ module Beam2D
         end
 
         freqs = evals.^(-0.5)
-        modes = u_to_Vh.(Ref(sys.problem.grid),eachcol(evecs))
+        modes = u_to_Vh.(Ref(sys.problem),eachcol(evecs))
         
         return evals, evecs, freqs, modes
     end
