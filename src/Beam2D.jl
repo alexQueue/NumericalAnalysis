@@ -468,28 +468,23 @@ module Beam2D
         IC = [u zeros(size(u)...,2)]
         T = get_T(IC)
 
-        T_t = T(0.0)
-        # display([T_t.*f(0) for f in XY[1][1]])
         xs = [xy[1] for xy in XY]
         ys = [xy[2] for xy in XY]
 
-        x(s) = [[f(0) for f in x_mode] for x_mode in xs]
-        display(T_t)
-        dd(s) = sum(T_t) * x(s)
-        display(dd(0))
-        # display(xt)
+        function make_curve_fnc(qs,T_t)
+            q(s) = [[f(s) for f in mode] for mode in qs]
+            qq = s -> sum([T_t[i]*q(s)[i] for i in 1:n_m])
+            return qq
+        end
 
-        # ts = collect(LinRange(0,10,10))
-        # anim = @animate for t in ts
-        #     T_t = T(t)
-        #     xs = 0
-        # end
-
-        return XY,get_T
-        # anim = @animate for mode in modes
-        #     plot(mode[1],mode[2],0,1,color="black",label=false,linewidth=2)
-        # end
-        # gif(anim, savefile, fps=fps)
+        ts = collect(LinRange(0,10,10))
+        p = plot()
+        anim = @animate for t in ts
+            xsT = make_curve_fnc(xs,T(t))
+            ysT = make_curve_fnc(ys,T(t))
+            plot!(xsT,ysT,0,1,color="black",label=false,linewidth=2)
+        end
+        gif(anim, savefile, fps=fps)
     end
     
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
