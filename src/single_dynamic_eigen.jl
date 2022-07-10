@@ -37,18 +37,13 @@ IC   = [sys.Se\sys.qe zeros(sys.shape[2])]
 
 #Change load & solve dynamically with eigen method
 xs = collect(LinRange(0,1,1000))
-ts = collect(LinRange(0,10,500))
+ts = collect(LinRange(0,1,20))
 
-X,get_T = Beam1D.solve_dy_eigen(sys)
-T       = get_T(IC)
-X_xs    = X.(xs)
-X_grid  = X.(grid)
-display(typeof(X_xs))
+get_sol = Beam1D.solve_dy_eigen(sys)
+sol     = get_sol(IC)
 
 anim = Plots.@animate for t in ts
-    T_t = T(t)'
-    Plots.plot(xs,Ref(T_t).*X_xs,ylim=[-1.5,1.5])
-    Plots.plot!(grid,Ref(T_t).*X_grid,seriestype=:scatter)
+    Plots.plot(sol(t)...,0,1,ylim=[-1.5,1.5])
 end
 
 Plots.gif(anim, "../img/beam_animation.gif", fps=15)

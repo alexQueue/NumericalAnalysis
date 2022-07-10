@@ -152,19 +152,17 @@ module Beam1D
 	function solve_dy_eigen(sys::System,n_m::Int64=4)
 		evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
 		
-		X(x::Float64) = [mode(x) for mode in modes]
-
-		function get_T(IC::Matrix{Float64})
+		function get_sol(IC::Matrix{Float64})
 			@assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
 
 			as = evecs\IC[:,1]
 			bs = (evecs\IC[:,2])./freqs
 
-			T(t::Float64) = as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)
+			sol(t) = u_to_Vh(sys.problem.grid,evecs*(as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)))
 
-			return T
+			return sol
 		end
 
-		return X, get_T
+		return get_sol
 	end
 end
