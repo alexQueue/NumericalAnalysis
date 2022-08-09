@@ -1,9 +1,6 @@
 module Beam2D
 	using SparseArrays,Printf,LinearAlgebra,Plots #Stdlib imports
-	import IterTools, Arpack #External imports
-
-    using PyCall
-    using SciPy
+	import IterTools, Arpack, SciPy #External imports
 
     mutable struct Node
         type::String
