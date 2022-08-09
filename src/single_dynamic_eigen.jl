@@ -46,6 +46,6 @@ anim = Plots.@animate for t in ts
     Plots.plot(sol(t)...,0,1,ylim=[-1.5,1.5])
 end
 
-Plots.gif(anim, "../img/beam_animation.gif", fps=15)
+Plots.gif(anim, "img/beam_animation.gif", fps=15)
 
 #TODO: Implement some other configurations for gifs

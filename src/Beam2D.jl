@@ -549,8 +549,8 @@ module Beam2D
     function get_vibrations(sys::System,n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
-        Me = SciPy.sparse.linalg.csc_matrix(sys.Me)
-        Se = SciPy.sparse.linalg.csc_matrix(sys.Se) 
+        Me = SciPy.sparse.csc_matrix(sys.Me)
+        Se = SciPy.sparse.csc_matrix(sys.Se) 
 
         evals, evecs = real.(SciPy.sparse.linalg.eigs(Me,k=n_m,M=Se))
 
@@ -564,7 +564,7 @@ module Beam2D
         evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
         
         function get_sol(IC::Matrix{Float64})
-            @assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+            @assert size(IC) == (sum(sys.shape),3) "Wrong IC size for given system"
 
             as = evecs\IC[:,1]
             bs = (evecs\IC[:,2])./freqs

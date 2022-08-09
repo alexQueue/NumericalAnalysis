@@ -1,5 +1,4 @@
 include("Beam2D.jl")
-import Plots
 
 problem = Beam2D.Problem("data/framework3.ne")
 sys  = Beam2D.System(problem)
