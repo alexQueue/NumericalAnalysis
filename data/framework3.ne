@@ -1,4 +1,3 @@
-# Crane frame for first testing
 NODES
 2.0 2.0
 3.0 2.0
@@ -50,9 +49,9 @@ TYPE
 10 FREE
 11 FREE
 12 FREE
-13 FORCE [0 -10000] [0]
+13 FORCE [0 -1] [0]
 PARAMETERS
-E 1
+E 10 
 I 1
 A 1
 mu 1

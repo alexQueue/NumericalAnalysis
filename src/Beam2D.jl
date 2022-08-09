@@ -3,10 +3,7 @@ module Beam2D
 	import IterTools, Arpack #External imports
 
     using PyCall
-    using Conda
-    Conda.add("scipy")
-    global spsparse = pyimport("scipy.sparse")
-    global splinalg = pyimport("scipy.sparse.linalg")
+    using SciPy
 
     mutable struct Node
         type::String
@@ -75,6 +72,7 @@ module Beam2D
         txt = read(io, String)
         fl_as_list = split(txt,"\n")
         fl_as_list = strip.(fl_as_list) # Remove trailing whitespace
+        filter!(x->x!= "", fl_as_list) # Remove empty elements
         filter!(x->x[1] != '#', fl_as_list) # Remove comments
         fl_as_list = String.(fl_as_list)
         fl_as_list = striplinecomment.(fl_as_list)
@@ -86,8 +84,6 @@ module Beam2D
         nodes = [parse.(Float64, x) for x in node_data]
 
         edges = edges_setup(edges)
-        # display(edges)
-        # return
         
         types = get_node_type_list(types)
 
@@ -130,7 +126,6 @@ module Beam2D
         end
 
 
-        # Problem(Nodes,Edges)
         return Nodes,Edges
     end
     
@@ -210,7 +205,6 @@ module Beam2D
         strip(b)
     end
 
-    # TODO - Add values to vector of values of constraints herein as well
     function C_matrix_construction(Problem)
         # Count size of cᵀ, denoted r
         r = 0
@@ -551,17 +545,17 @@ module Beam2D
             u_1[:,t+1] = u_1s + gamma*h*u_2[:,t+1]
             u_0[:,t+1] = u_0s + beta*h^2*u_2[:,t+1]
         end
-    
+        
         return [u_to_Vh(sys.problem,u) for u in eachcol(u_0)]
     end
 
     function get_vibrations(sys::System,n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
-        Me = spsparse.csc_matrix(sys.Me)
-        Se = spsparse.csc_matrix(sys.Se)
+        Me = SciPy.sparse.linalg.csc_matrix(sys.Me)
+        Se = SciPy.sparse.linalg.csc_matrix(sys.Se) 
 
-        evals, evecs = real.(splinalg.eigs(Me,k=n_m,M=Se))
+        evals, evecs = real.(SciPy.sparse.linalg.eigs(Me,k=n_m,M=Se))
 
         freqs = evals.^(-0.5)
         modes = u_to_Vh.(Ref(sys.problem),eachcol(evecs))
