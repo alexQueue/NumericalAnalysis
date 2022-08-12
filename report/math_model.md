@@ -1,8 +1,6 @@
 # Description
 The mathematical model of the static bending equation is given by
-$$
-    (EIw'')''(x) = q(x),\hspace{0.5cm}x\in\Omega
-$$
+$$(EIw'')''(x) = q(x),\hspace{0.5cm}x\in\Omega$$
 where the domain $\Omega = [0,L]$ is one-dimensional and $L$ is the length of the beam. Specifically we have
 * $w(x)$: height of the neutral axis (bending curve) at x
 * $E(x)$: Young's modulus
