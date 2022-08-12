@@ -1,0 +1,2 @@
+# Description
+We use the Finite Element Method to model the bending of elastic beams in both static and dynamic cases. We start with a single cantilevered one-dimensional beam of a certain stiffness and under an applied force, and we use the finite element method to model the static bending of the beam. In a second step, we change the force over time and observe the beam's dynamic behavior using both the Newmark method and the eigenvalue method. Finally, we extend this single one-dimensional beam to a two-dimensional network of connected beams.
