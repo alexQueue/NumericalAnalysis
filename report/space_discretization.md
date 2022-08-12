@@ -3,13 +3,13 @@ To solve the static bending equation with the Finite Element Method we first fin
 
 Our trial and function space $V$ includes piecewise twice differentiable functions $V:=C^{2,p}(\Omega) = \{\phi:\Omega\to\mathbb{R}|\phi\in C(\Omega), \phi'\in C(\Omega), \phi''\in C^p(\Omega)\}$, since we need to consider the fourth order derivative of w(x). We begin by intergrating the static bending equation over the domain $\Omega$ and multiplying with the test function $\psi(x)\in V$
 
-$$    \int _\Omega (EIw'')''(x) \psi (x) dx &= \int _\Omega q(x) \psi (x) dx, \quad \forall \psi \in V$$
+$$    \int _\Omega (EIw'')''(x) \psi (x) dx = \int _\Omega q(x) \psi (x) dx, \quad \forall \psi \in V$$
 Applying partial integration twice then yields
-$$   \int _\Omega (EIw'')'' \psi dx &= - \int_\Omega (EIw'')'\psi' dx + [(EIw'')' \psi]_\Omega \\
+$$   \int _\Omega (EIw'')'' \psi dx = - \int_\Omega (EIw'')'\psi' dx + [(EIw'')' \psi]_\Omega \\
       & = \int _\Omega EIw'' \psi '' dx + \left[ (EIw'')'\psi \right]_\Omega - \left[ EIw''\psi' \right ]_\Omega \\
          & = \int _\Omega EIw'' \psi '' dx  \underbrace{Q(L) \psi(L) - Q(0)\psi(0) + M(L)\psi(L)-M(0)\psi(0) }_{b(\psi)} \\
             \Longleftrightarrow \quad \underbrace{ \int _\Omega EIw'' \psi '' dx }_{a(w, \psi)}  & =  \underbrace{\int_\Omega q \psi dx - b(\psi) }_{F(\psi)}$$
-   $$\int _\Omega (EIw'')'' \psi dx &= - \int_\Omega (EIw'')'\psi' dx + [(EIw'')' \psi]_\Omega \\
+   $$\int _\Omega (EIw'')'' \psi dx = - \int_\Omega (EIw'')'\psi' dx + [(EIw'')' \psi]_\Omega \\
    & = \int _\Omega EIw'' \psi '' dx + \left[ (EIw'')'\psi \right]_\Omega - \left[ EIw''\psi' \right]_\Omega \\
    & = \int _\Omega EIw'' \psi '' dx  \underbrace{Q(L) \psi(L) - Q(0)\psi(0) + M(L)\psi(L)-M(0)\psi(0) }_{b(\psi)} \\
    \Longleftrightarrow \quad \underbrace{ \int _\Omega EIw'' \psi '' dx }_{a(w, \psi)}  & =  \underbrace{\int_\Omega q \psi dx - b(\psi) }_{F(\psi)}$$
@@ -84,9 +84,9 @@ $$
 The four form functions $\Bar{\phi_i}, i = 1, ..,4$ used for the  basis functions are polynomial functions of degree 3 and determined by 
 
 $$
-    \Bar{\phi_1}(\xi) &= 1-3\xi^2+ 2\xi^3 \\
-    \Bar{\phi_2}(\xi) &= \xi(\xi-1)^2 \\
-    \Bar{\phi_3}(\xi) &= 3\xi^2- 2\xi^3 \\
-    \Bar{\phi_4}(\xi) &= \xi^2(\xi-1). \\
+    \Bar{\phi_1}(\xi) = 1-3\xi^2+ 2\xi^3 \\
+    \Bar{\phi_2}(\xi) = \xi(\xi-1)^2 \\
+    \Bar{\phi_3}(\xi) = 3\xi^2- 2\xi^3 \\
+    \Bar{\phi_4}(\xi) = \xi^2(\xi-1). \\
 $$
 
