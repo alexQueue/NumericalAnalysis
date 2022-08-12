@@ -2,8 +2,7 @@
 ## Analytical Solution
 In this section we compare the analytical results of several load cases to our numerical results. For all cases a constant Youngs module $E(x) = E$ and a constant  area moment or inertia $I(x) = I$ is assumed. The numerical result is computed with 20 grid points and the length of the beam is $l = 1$. 
 Fixing the beam on the left side leads to the boundary conditions 
-    $$w(0) = 0 ,  \quad w'(x) = 0.
-    \label{eq:Analy_BC_fixed_beam}$$
+    $$w(0) = 0 ,  \quad w'(x) = 0.$$
 The first case is a simple constant load case, depicted in figure ref\{fig:Analytical_Sol_Beam_const_1\}, where we choose  $q_0 = 3$. By integrating the static bending equation ref\{eq:StaticBendingEq\} four times and using the boundary conditions ref\{eq:Analy_BC_fixed_beam\} and $Q(l) = 0$ and $M(l) = 0$  to find the integration constants 
 we get the bending curve 
     $$EI w(x) = \frac{q_0 l^4}{24} \left( 6 \xi^2 - 4 \xi ^3 + \xi^4 \right)$$
