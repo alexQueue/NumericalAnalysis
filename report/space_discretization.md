@@ -41,14 +41,14 @@ The basis functions $\phi_i$ with $i=2,.., n-1 $ are defined as follows
 
 $$
     \phi_{2i-1}(x) = \begin{cases} 
-    \Bar{\phi_3}(\frac{x-x_{i-1}}{h})  \quad & x \in [x_{i-1}, x_i] \\
-    \Bar{\phi_1}(\frac{x-x_i}{h}) \quad & x \in [x_i, x_{i+1}] \\
+    \overline{\phi_3}(\frac{x-x_{i-1}}{h})  \quad & x \in [x_{i-1}, x_i] \\
+    \overline{\phi_1}(\frac{x-x_i}{h}) \quad & x \in [x_i, x_{i+1}] \\
     0 \quad  &\text{otherwise}
     \end{cases}
     \quad
     \phi_{2i}(x) = \begin{cases} 
-    h \Bar{\phi_4}(\frac{x-x_{i-1}}{h})  \quad & x \in [x_{i-1}, x_i] \\
-    h \Bar{\phi_2}(\frac{x-x_i}{h}) \quad & x \in [x_i, x_{i+1}] \\
+    h \overline{\phi_4}(\frac{x-x_{i-1}}{h})  \quad & x \in [x_{i-1}, x_i] \\
+    h \overline{\phi_2}(\frac{x-x_i}{h}) \quad & x \in [x_i, x_{i+1}] \\
     0 \quad  &\text{otherwise.}
     \end{cases}
 $$
@@ -57,12 +57,12 @@ At the boundary elements, we get
 
 $$
     \phi_{1}(x) = \begin{cases} 
-    \Bar{\phi_1}(\frac{x}{h})  \quad & x \in [0, h] \\
+    \overline{\phi_1}(\frac{x}{h})  \quad & x \in [0, h] \\
     0 \quad  &\text{otherwise}
     \end{cases}
     \quad
     \phi_{2}(x) = \begin{cases} 
-    h \Bar{\phi_2}(\frac{x}{h})  \quad & x \in [0, h] \\
+    h \overline{\phi_2}(\frac{x}{h})  \quad & x \in [0, h] \\
     0 \quad  &\text{otherwise}
     \end{cases}
 $$
@@ -71,22 +71,22 @@ and
 
 $$
     \phi_{2n-1}(x) = \begin{cases} 
-    \Bar{\phi_3}(\frac{x-x_{n-1}}{h})  \quad & x \in [x_{n-1}, L] \\
+    \overline{\phi_3}(\frac{x-x_{n-1}}{h})  \quad & x \in [x_{n-1}, L] \\
     0 \quad  &\text{otherwise}
     \end{cases}
     \quad
     \phi_{2n}(x) = \begin{cases} 
-    h \Bar{\phi_4}(\frac{x-x_{n-1}}{h})  \quad & x \in [x_{n-1}, L] \\
+    h \overline{\phi_4}(\frac{x-x_{n-1}}{h})  \quad & x \in [x_{n-1}, L] \\
     0 \quad  &\text{otherwise.}
     \end{cases}
 $$
 
-The four form functions $\Bar{\phi_i}, i = 1, ..,4$ used for the  basis functions are polynomial functions of degree 3 and determined by 
+The four form functions $\overline{\phi_i}, i = 1, ..,4$ used for the  basis functions are polynomial functions of degree 3 and determined by 
 
 $$
-    \Bar{\phi_1}(\xi) = 1-3\xi^2+ 2\xi^3 \\
-    \Bar{\phi_2}(\xi) = \xi(\xi-1)^2 \\
-    \Bar{\phi_3}(\xi) = 3\xi^2- 2\xi^3 \\
-    \Bar{\phi_4}(\xi) = \xi^2(\xi-1). \\
+    \overline{\phi_1}(\xi) = 1-3\xi^2+ 2\xi^3 \\
+    \overline{\phi_2}(\xi) = \xi(\xi-1)^2 \\
+    \overline{\phi_3}(\xi) = 3\xi^2- 2\xi^3 \\
+    \overline{\phi_4}(\xi) = \xi^2(\xi-1). \\
 $$
 
