@@ -10,6 +10,8 @@ makedocs(
             "Mathematical Model" => "math_model.md"
             "Implementation" =>
                 ["space_discretization.md", "time_discretization.md"], 
+            "Results" => "results.md"
+            "Conclusion" => "conclusion.md"
         ],
 )
 
