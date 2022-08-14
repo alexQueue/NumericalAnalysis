@@ -18,13 +18,14 @@ IC   = [sys.Se\sys.qe zeros(sys.shape[2],2)]
 prob.parameters.q(x) = 0
 sys = Beam1D.System(prob)
 
-times = collect(LinRange(0,10,500))
+times = collect(LinRange(0,10,50))
 sols  = Beam1D.solve_dy_Newmark(sys,IC,times)
 
 anim = Plots.@animate for (xs,ys) in sols
-    Plots.plot!.(xs,ys,0,1,ylim=[-1.5,1.5])
+    Plots.plot(xs,ys,0,1,ylim=[-1.5,1.5],color="black",label=false,linewidth=2 )
+    Plots.plot!([0,1],[0,0],color="black",label=false,linewidth=2,linestyle=:dot)
 end
 
-Plots.gif(anim, "../img/beam_animation.gif", fps=15)
+Plots.gif(anim, "img/beam_animation.gif", fps=15)
 
 #TODO: Implement other configurations
