@@ -434,50 +434,6 @@ module Beam2D
         p
     end
 
-    function vibrate_frame(sys::System,times::Vector{Float64},savefile::String;fps::Int64=15)
-        u = sys.Se\sys.qe
-        IC = [u zeros(size(u)...,2)]
-
-        qe = copy(sys.qe)
-        sys.qe[:] .= 0
-
-        xys = solve_dy_Newmark(sys,IC,times)
-        xys_undeformed = u_to_Vh(sys.problem,zeros(size(u)...))
-
-        anim = @animate for (j,t) in enumerate(times)
-            plot(xys_undeformed[1],xys_undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
-            plot!(xys[j][1],xys[j][2],0,1,color="black",label=false,linewidth=2)
-        end
-        gif(anim, savefile, fps=fps)
-        sys.qe[:] = qe
-    end
-
-    function vibrate_frame_eig(sys::System, savefile::String;n_m::Int64=4, fps::Int64=15)
-        XY, get_T = solve_dy_eigen(sys, n_m)
-
-        u = sys.Se\sys.qe
-        IC = [u zeros(size(u)...,2)]
-        T = get_T(IC)
-
-        xs = [xy[1] for xy in XY]
-        ys = [xy[2] for xy in XY]
-
-        function make_curve_fnc(qs,T_t)
-            q(s) = [[f(s) for f in mode] for mode in qs]
-            qq = s -> sum([T_t[i]*q(s)[i] for i in 1:n_m])
-            return qq
-        end
-
-        ts = collect(LinRange(0,10,10))
-        p = plot()
-        anim = @animate for t in ts
-            xsT = make_curve_fnc(xs,T(t))
-            ysT = make_curve_fnc(ys,T(t))
-            plot!(xsT,ysT,0,1,color="black",label=false,linewidth=2)
-        end
-        gif(anim, savefile, fps=fps)
-    end
-    
     function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
         phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
 

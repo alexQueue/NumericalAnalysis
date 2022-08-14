@@ -36,16 +36,16 @@ sys  = Beam1D.System(prob)
 IC   = [sys.Se\sys.qe zeros(sys.shape[2])]
 
 #Change load & solve dynamically with eigen method
-xs = collect(LinRange(0,1,1000))
 ts = collect(LinRange(0,1,20))
 
 get_sol = Beam1D.solve_dy_eigen(sys)
 sol     = get_sol(IC)
 
 anim = Plots.@animate for t in ts
-    Plots.plot(sol(t)...,0,1,ylim=[-1.5,1.5])
+    Plots.plot([0,1],[0,0],color="black",label=false,linewidth=2,linestyle=:dot)
+    Plots.plot!(sol(t)...,0,1,ylim=[-1.5,1.5],color="black",label=false,linewidth=2)
 end
 
-Plots.gif(anim, "img/beam_animation.gif", fps=15)
+Plots.gif(anim, "img/beam_animation_eigen.gif", fps=15)
 
 #TODO: Implement some other configurations for gifs
