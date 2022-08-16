@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import sys 
+import sys
 
 options = sys.argv[1:]
 print(
@@ -81,7 +81,7 @@ def onclick(event):
             ax.set(xlim=(0,10),ylim=(0,10))
             if node_indices[0] != node_indices[1]:
                 edges.append(sorted((node_indices[0],node_indices[1])))
-        
+
         line_coords.pop()
         line_coords.pop()
         node_indices.pop()
@@ -164,5 +164,5 @@ for i,edge in enumerate(edges):
 for (i,coord,type) in zip(range(len(coords)),coords,types):
     ax.plot(coord[0],coord[1],color=colors[type],marker='o')
     ax.annotate(i+indexing, (coord[0]+0.1,coord[1]+0.1),color='black')
-plt.savefig(f'../data/{save_file}.png')
+plt.savefig(f'../data/{save_file}.svg')
 ############################################
