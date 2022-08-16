@@ -4,16 +4,13 @@ We wrote our program in the Julia programming language, due to its design as a h
 * single\_static.jl: Sets up the problem for the static single-beam case, and calls Beam1D.jl to solve it.
 * single\_dynamic.jl: Sets up the problem for the dynamic single-beam case, and calls Beam1D.jl to solve it using the Newmark method.
 * single\_eigen.jl: Sets up the problem for the dynamic single-beam case, and calls Beam1D.jl to solve it using the eigenvalue method.
-* construct\textunderscore framework.py: GUI to create \emph{.ne} files, which we load into our framework solvers.
+* construct\_framework.py: GUI to create \emph{.ne} files, which we load into our framework solvers.
+* visualize\_framework.jl: Takes one of the generated .ne files to visualize it with each node colored corresponding to the type of the node.
 * Beam2D.jl: Underlying solver for a framework of beams. Given a framework \emph{.ne} file, it sets up the system of matrices to solve.
 * framework\_static.jl: Sets up the problem for the static framework, and calls Beam2D.jl to solve it.
 * framework\_dynamic.jl: Sets up the problem for the dynamic framework, and calls Beam2D.jl to solve it using the Newmark method.
 * framework\_eigen.jl: Sets up the problem for the dynamic framework, and calls Beam2D.jl's solve\_dy\_eigen to solve it. 
-
-There are also two more script files that generate and visualize the framework data files:
-* construct\_framework.py: A GUI using matplotlib for the user to place points and connect the edges as well as define the type of each node.
-* visualize\_framework.jl: Takes one of the generated .ne files to visualize it with each node colored corresponding to the type of the node.
-
+## Detailed descriptions
 ### BeamXD.jl (X=1 or 2)
 The _BeamXD.jl_ files both make use of a _Problem_ struct and a _System_ struct. The _Problem_ struct holds all the information about the problem statement, whereas the _System_ struct defines the matrices that are used for solving the problem.
 
@@ -51,7 +48,4 @@ mu <fnc>
 ```
 where the optional ´´params´´ defines specific material properties for that edge, and the optional ´´gp´´ defines a specific amount of gridpoints at that edge.
 
-Using a file in this format the function  _Problem_ creates a new instance of the struct. This struct has three members (TODO:fix this name), _nodes_, _edges_, and the shape of the problem. The _nodes_ and _edges_ members are vectors of the structs _Node_ and _Edge_, which holds information about the specific edge and node. 
-
-### Other files
-The remaining files just sets up a problem and calculates the solution and then plots/animates it and saves it to the ´´img´´ folder.
+Using a file in this format the function  _Problem_ creates a new instance of the struct. This struct has three members (TODO:fix this word), _nodes_, _edges_, and the shape of the problem. The _nodes_ and _edges_ members are vectors of the structs _Node_ and _Edge_, which holds information about the specific edge and node. 
