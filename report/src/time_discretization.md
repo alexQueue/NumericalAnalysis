@@ -1,4 +1,5 @@
 # Time discretization
+## Newmark method
 To solve the dynamic case of the beam bending equation the Newmark Method was used. This method finds an approximation of the solution to the equation
 $$ f(\ddot{u}(t),\dot{u}(t),u(t),t)=0.$$
 In the case considered in this project $f(\ddot{u},\dot{u},u,t) = M\ddot{u}+D\dot{u}+Su-q(t)$.
@@ -17,3 +18,5 @@ $$\left(M+\gamma h_jD+\beta h_j^2S)\ddot{u}_{j+1} = q(t_{j+1})-D\dot{u}_j^*-Su_j
 $$u_{j+1} = u_j^* +\beta \ddot{u}_{j+1}h_j^2$$
 and
 $$\dot{u}_{j+1} = \dot{u}_j^* + \gamma \ddot{u}_{j+1}h_j.$$
+## Eigenvalue method
+TODO: Write about this
