@@ -14,7 +14,7 @@ We wrote our program in the Julia programming language, due to its design as a h
 ### BeamXD.jl (X=1 or 2)
 The _BeamXD.jl_ files both make use of a _Problem_ struct and a _System_ struct. The _Problem_ struct holds all the information about the problem statement, whereas the _System_ struct defines the matrices that are used for solving the problem.
 
-The _System_ struct is similar in both cases as it calculates the matrices $M_e$, $S_e$ and $q_e$ using the methods described in the math parts. (TODO: Reformulate that).
+The _System_ struct is similar in both cases as it calculates the matrices $M_e$, $S_e$ and $q_e$ using the methods described in the discretization parts.
 
 For plotting we need to convert the resulting displacement vector $u$ into parametric curves. We chose to use --- curves. The function _u\_to\_Vh_ does that and returns a vector/scalar of the parametric curves.
 
@@ -48,4 +48,4 @@ mu <fnc>
 ```
 where the optional ´´params´´ defines specific material properties for that edge, and the optional ´´gp´´ defines a specific amount of gridpoints at that edge.
 
-Using a file in this format the function  _Problem_ creates a new instance of the struct. This struct has three members (TODO:fix this word), _nodes_, _edges_, and the shape of the problem. The _nodes_ and _edges_ members are vectors of the structs _Node_ and _Edge_, which holds information about the specific edge and node. 
+Using a file in this format the function  _Problem_ creates a new instance of the struct. This struct has three members _nodes_, _edges_, and the shape of the problem. The _nodes_ and _edges_ members are vectors of the structs _Node_ and _Edge_, which holds information about the specific edge and node. 
