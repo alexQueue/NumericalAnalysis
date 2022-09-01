@@ -3,63 +3,65 @@ module Beam2D
 	import IterTools, Arpack, SciPy #External imports
 
     mutable struct Node
-        type::String
-        coord::Vector{Float64}
-        number::Int64
+        type    ::String # FREE/FIXED/FORCE/MOVABLE
+        coord   ::Vector{Float64} # 2 element vector of global cooridnates.
+        number  ::Int64 # The iteration when this node object was created
 
-        force::Vector{Float64}
-        moment::Float64
-        movable_direction::Union{Vector{Float64},String}
+        # The specific values for a node of type FORCE/MOVABLE
+        force               ::Vector{Float64}
+        moment              ::Float64
+        movable_direction   ::Union{Vector{Float64},String}
 
-        connecting_edges::Vector{Int64}
+        connecting_edges    ::Vector{Int64} # The edges that are connected to this node
 
         function Node(
-                    type::Union{String,SubString{String}},
-                    coord::Vector{Float64},
-                    number::Int64;
-                    force::Vector{Float64} = [0.0,0.0],
-                    moment::Float64 = 0.0,
-                    movable_direction::Union{Vector{Float64},String} = "ALL"
+                    type              ::Union{String,SubString{String}},
+                    coord             ::Vector{Float64},
+                    number            ::Int64;
+                    force             ::Vector{Float64} = [0.0,0.0],
+                    moment            ::Float64 = 0.0,
+                    movable_direction ::Union{Vector{Float64},String} = "ALL"
                 )
             if movable_direction != "ALL"
-                movable_direction = movable_direction / norm(movable_direction)
+                movable_direction = movable_direction / norm(movable_direction) # Normalize the movable direction
             end
             new(type,coord,number,force,moment,movable_direction,[])
         end
     end
 
     struct Edge
-        nodes::Vector{Node}
-        grid::Vector{Float64}
-        gridlen::Int64
-        len::Float64
-        index_start::Int64
+        nodes       ::Vector{Node} # 2 element vector which nodes the edge is construed from
+        grid        ::Vector{Float64} # The finite element gridpoints used in local coordinates
+        gridlen     ::Int64 # How many elements are in the grid
+        len         ::Float64 # The length of the node
+        index_start ::Int64 # Which index in the whole framework the edge's start is
 
-        E::Function
-        I::Function
-        A::Function
-        mu::Function
+        # Functions of x and t for the parameters
+        E   ::Function
+        I   ::Function
+        A   ::Function
+        mu  ::Function
     end
 
     struct Problem
-        nodes::Vector{Node}
-		edges::Vector{Edge}
-        shape::Tuple{Int,Int}
+        nodes ::Vector{Node} # Collection of the nodes in the framework
+		edges ::Vector{Edge} # Collection of the edges in the framework
+        size  ::Int64 # Amount of elements in the whole framework
 
         function Problem(file::String)
             nodes, edges = problem_constructor(file)
 
             last_edge = edges[end]
             size = last_edge.index_start + length(last_edge.grid)*3 - 1
-            shape = (size,size)
 
+            # Add the corresponding edges for each node
             for (i, edge) in enumerate(edges)
                 for node in edge.nodes
                     push!(node.connecting_edges, i)
                 end
             end
 
-            new(nodes,edges,shape)
+            new(nodes,edges,size)
         end
 	end
 
@@ -70,9 +72,8 @@ module Beam2D
         fl_as_list = split(txt,"\n")
         fl_as_list = strip.(fl_as_list) # Remove trailing whitespace
         filter!(x->x!= "", fl_as_list) # Remove empty elements
-        filter!(x->x[1] != '#', fl_as_list) # Remove comments
-        fl_as_list = String.(fl_as_list)
-        fl_as_list = striplinecomment.(fl_as_list)
+        fl_as_list = String.(fl_as_list) # Cast from SubString to String
+        fl_as_list = striplinecomment.(fl_as_list) # Remove comments
         indices = findall(x->x in ["NODES","EDGES","TYPE","PARAMETERS"], fl_as_list) 
         splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 4 lists
         nodes,edges,types,params = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
@@ -220,8 +221,8 @@ module Beam2D
             end
         end
 
-        C = spzeros(Problem.shape[1],r)
-        f = spzeros(Problem.shape[1])
+        C = spzeros(Problem.size,r)
+        f = spzeros(Problem.size)
 
         i = 1
         for node in Problem.nodes
