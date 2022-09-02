@@ -1,3 +1,9 @@
+# Beam2D.jl
+# Authors: Alex Quinlan, Pia Callmer, Nicola Sabbadini & Henry Jacobson
+#
+# TU Berlin
+# Project Numerical Analysis SoSe 2022
+
 module Beam2D
 	using SparseArrays,Printf,LinearAlgebra,Plots #Stdlib imports
 	import IterTools, Arpack, SciPy #External imports
@@ -331,12 +337,12 @@ module Beam2D
             else # "FORCE/FREE"
                 if node.type == "FORCE"
                     edge = problem.edges[node.connecting_edges[1]]
-                    angle = edge_angle(edge)
+                    angle = -edge_angle(edge) # Rotation is done counter-clockwise to the angle
                     j1,j2 = linking_index(edge, node)
                     fx = node.force[1]; fy = node.force[2]
 
                     # Add force in correct direction on the local coordinate system of node
-                    f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy]
+                    f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy] 
                 end
                 i = connecting_edges_conditions!(problem, node, C, i)
             end

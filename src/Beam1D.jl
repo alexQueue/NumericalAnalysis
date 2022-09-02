@@ -1,3 +1,9 @@
+# Beam2D.jl
+# Authors: Alex Quinlan, Pia Callmer, Nicola Sabbadini & Henry Jacobson
+#
+# TU Berlin
+# Project Numerical Analysis SoSe 2022
+
 module Beam1D
 	using SparseArrays, LinearAlgebra #Stdlib imports
 	import IterTools, Arpack #External imports
