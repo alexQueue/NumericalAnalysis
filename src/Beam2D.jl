@@ -98,6 +98,7 @@ module Beam2D
         fl_as_list = split(txt,"\n")
         fl_as_list = strip.(fl_as_list) # Remove trailing whitespace
         filter!(x->x!= "", fl_as_list) # Remove empty elements
+        filter!(x->x[1] != '#', fl_as_list) # Remove line starting with a comment
         fl_as_list = String.(fl_as_list) # Cast from SubString to String
         fl_as_list = striplinecomment.(fl_as_list) # Remove comments
         indices = findall(x->x in ["NODES","EDGES","TYPE","PARAMETERS"], fl_as_list) 
@@ -262,7 +263,7 @@ module Beam2D
         constraints_construction(Problem)
 
     Constructs the constraint matrix C and constraint forces f from `problem`
-    object of class Problem
+    object of class Problem.
     """
     function constraints_construction(problem::Problem)
         # Count size of cᵀ, denoted r
@@ -334,6 +335,7 @@ module Beam2D
                     j1,j2 = linking_index(edge, node)
                     fx = node.force[1]; fy = node.force[2]
 
+                    # Add force in correct direction on the local coordinate system of node
                     f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy]
                 end
                 i = connecting_edges_conditions!(problem, node, C, i)
@@ -342,8 +344,14 @@ module Beam2D
         C,f
     end
 
+    """
+        connecting_edges_conditions!(problem::Problem, node::Node, C, i::Int64)
+
+    Inserts the linking and stiffness condition for the node in the constraint matrix,
+    returns the iteration i after its done.
+    """
     function connecting_edges_conditions!(problem::Problem, node::Node, C, i::Int64)
-        first_edge = problem.edges[node.connecting_edges[1]]
+        first_edge = problem.edges[node.connecting_edges[1]] # Compare everything to first edge (arbitrary which)
         phi_1 = edge_angle(first_edge)
         
         for rem_edge in problem.edges[node.connecting_edges[2:end]]
@@ -367,10 +375,20 @@ module Beam2D
         return i
     end
 
+    """
+        edge_node_order(edge, node)
+
+    Return "first" if `edge` starts at `edge`.
+    """
     function edge_node_order(edge, node)
         edge.nodes[1].number == node.number ? "first" : "last"
     end
 
+    """
+        fixd_index(edge, node)
+
+    Returns thes indices of the constraints of a FIXED node.
+    """
     function fixed_index(edge, node)
         order = edge_node_order(edge, node)
         inds = order == "first" ? 
@@ -387,8 +405,12 @@ module Beam2D
         return inds
     end
 
-    # Returns the indices for the linking condition for the edge with order "last" or "first"
-    # Is the same indices for the force
+    """
+        linking_index(edge, node)
+
+    Returns the indices for the linking condition for the `edge` with order "last" or "first".
+    It is the same indices for the force.
+    """
     function linking_index(edge, node)
         order = edge_node_order(edge, node)
         inds = order == "first" ? 
@@ -399,20 +421,37 @@ module Beam2D
         return inds
     end
 
+    """
+        stiffness_index(edge, node)
+
+    Returns the index corresponding to a stiff node.
+    """
     function stiffness_index(edge, node)
         order = edge_node_order(edge, node)
-        inds = order == "last" ? 
+        index = order == "last" ? 
             edge.index_start + edge.gridlen*3 - 1 :
             edge.index_start + edge.gridlen + 1 
-        return inds
+        return index
     end
 
+    """
+        edge_angle(edge::Edge)
+
+    Returns the angle of an edge to the x-axis.
+    """
     function edge_angle(edge::Edge)
         dy = edge.nodes[2].coord[2] - edge.nodes[1].coord[2]
         dx = edge.nodes[2].coord[1] - edge.nodes[1].coord[1]
         atan(dy,dx)
     end
 
+    """
+        struct System
+
+    Struct that contains the matrices that define the problem, as well
+    as the shape which is the size of the S/M matrix and the length of the force vector 
+    (the same as the # of columns of the contraint matrix).
+    """
 	struct System
 		problem ::Problem
         shape   ::Tuple{Int,Int}
@@ -420,6 +459,11 @@ module Beam2D
 		Se      ::SparseMatrixCSC{Float64,Int64}
 		qe      ::Vector{Float64}
 
+        """
+            System(problem::Problem)
+
+        Constructor of a `System` object from a `problem`.
+        """
 		function System(problem::Problem)
             n = sum([edge.gridlen*3 for edge in problem.edges])
 
@@ -437,9 +481,10 @@ module Beam2D
             # Physics
             # Shape functions and derivatives on element [0,h], with t in [0,1]
             phi_T_0(h,t) = [ t^2*(2*t-3)+1, t*(t-1)^2*h  ,-t^2*(2*t-3)  , t^2*(t-1)*h   ]
-            phi_T_1(h,t) = [ 6*t*(t-1)/h  , (t-1)*(3*t-1),-6*t*(t-1)/h  , t*(3*t-2)     ]
+            phi_T_1(h,t) = [ 6*t*(t-1)/h  , (t-1)*(3*t-1),-6*t*(t-1)/h  , t*(3*t-2)     ] # Not used
             phi_T_2(h,t) = [ (12*t-6)/h^2 , (6*t-4)/h    ,-(12*t-6)/h^2 , (6*t-2)/h     ]
-            phi_T_3(h,t) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ]
+            phi_T_3(h,t) = [ 12/h^3       , 6/h^2        ,-12/h^3       , 6/h^2         ] # Not used
+
             phi_L_0(h,t) = [ t            , 1-t]
             phi_L_1(h,t) = [ 1/h          ,-1/h]
 
@@ -478,6 +523,7 @@ module Beam2D
                     M = view(Me, partition, partition)
                     S = view(Se, partition, partition)
                     
+                    # Loop through the local indices
                     for (i,h,o) in zip(collect.(IterTools.partition(1:n,2j,j)),diff(edge.grid),edge.grid)
                         M[i,i] += M_loc(h,o,Mbase_fnc)
                         S[i,i] += S_loc(h,o,Sbase_fnc,E_)
@@ -490,6 +536,11 @@ module Beam2D
         end
 	end
 
+    """
+        plot_static(sys::System)
+
+    Solves the problem defined in `sys` and returns a plot object of the plot.
+    """
     function plot_static(sys::System)
         u = sys.Se\sys.qe
         xs,ys = u_to_Vh(sys.problem, u)
@@ -500,19 +551,34 @@ module Beam2D
         p
     end
 
-    function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) #Convert coefficients to Vh function
-        phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
+    """
+        u_to_Vh(problem::Problem,u::AbstractVector{Float64})
 
-        n_elements = sum([edge.gridlen-1 for edge in problem.edges])
+    Converts a solution `u` to parametric curves using `problem` object.
+    Returns two vectors of the x-functions and the y-functions, parametrized
+    from 0 to 1.
+    """
+    function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) 
+        phi(t) = [
+            t^2*(2*t-3)+1,
+            t*(t-1)^2,
+            -t^2*(2*t-3),
+            t^2*(t-1)
+         ] # The basis functions
+
+        # Number of parametric curves, one for each element on each edge
+        n_elements = sum([edge.gridlen-1 for edge in problem.edges]) 
 
         xs = Vector{Function}(undef,n_elements)
         ys = Vector{Function}(undef,n_elements)
 
         i = 1
         for edge in problem.edges
-            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord
+            edge_dir = edge.nodes[2].coord - edge.nodes[1].coord # Direction of the edge in global coordinates
             edge_start = edge.nodes[1].coord
-            pos(t) = edge_start + t*edge_dir
+            pos(t) = edge_start + t*edge_dir # Function to get the position of the start finite element on the edge
+
+            rot_matrix = [edge_dir[1] -edge_dir[2]; edge_dir[2] edge_dir[1]]./norm(edge_dir)
 
             for element_nr in 1:edge.gridlen-1
                 pos1 = pos((element_nr-1)/(edge.gridlen-1))
@@ -522,14 +588,12 @@ module Beam2D
                 w_inds = (edge.index_start + edge.gridlen) .+ (2*(element_nr-1):2*(element_nr-1)+3)
                 (x0,x1,y0,g0,y1,g1) = u[[v_inds...,w_inds...]]
 
-                e = edge.nodes[2].coord - edge.nodes[1].coord
-                R = [e[1] -e[2]; e[2] e[1]]./norm(e)
-                h = norm(e) + x0 + x1
+                h = norm(edge_dir) + x0 + x1
 
-                q0_x,q0_y = pos1 .+ R * [x0,y0]
-                q1_x,q1_y = pos2 .+ R * [x1,y1]
-                u0_x,u0_y = R * [1,g0] .* h
-                u1_x,u1_y = R * [1,g1] .* h
+                q0_x,q0_y = pos1 .+ rot_matrix * [x0,y0]
+                q1_x,q1_y = pos2 .+ rot_matrix * [x1,y1]
+                u0_x,u0_y = rot_matrix * [1,g0] .* h
+                u1_x,u1_y = rot_matrix * [1,g1] .* h
 
                 xs[i] = t -> dot([q0_x,u0_x,q1_x,u1_x],phi(t))
                 ys[i] = t -> dot([q0_y,u0_y,q1_y,u1_y],phi(t))
@@ -540,6 +604,12 @@ module Beam2D
         return xs, ys
     end
 
+    """
+        solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+
+    Solves the problem using Newmarks method using the initial conditions `IC` for the `times` specified
+    and returns a vector of the parametric curves for the whole framework for each timepoint.
+    """
     function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
         N = sum(sys.shape)
         @assert size(IC) == (N,3) "Wrong IC size for given system"
@@ -552,9 +622,10 @@ module Beam2D
         u_1 = Array{Float64,2}(undef,N,n_t)
         u_2 = Array{Float64,2}(undef,N,n_t)
         
+        # Put the initial condition in the first column of the solution
         u_0[:,1], u_1[:,1], u_2[:,1] = eachcol(IC)
 
-        beta, gamma = (1/4,1/2)
+        beta, gamma = (1/4,1/2) # Optimal parameters for the problem.
 
         for (t,h) in enumerate(diff(times))
             u_0s = u_0[:,t] + h*u_1[:,t] + (0.5-beta)*h^2*u_2[:,t]
@@ -568,9 +639,16 @@ module Beam2D
         return [u_to_Vh(sys.problem,u) for u in eachcol(u_0)]
     end
 
+    """
+        get_vibrations(sys::System,n_m::Int64=4)
+
+    Returns the first `n_m` generalized eigenvalues, eigenvectors, frequencies 
+    and modes of the system matrices.
+    """
     function get_vibrations(sys::System,n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
+        # LaPack generalized eigenvalues in julia didnt work for the 2D case for some reason
         Me = SciPy.sparse.csc_matrix(sys.Me)
         Se = SciPy.sparse.csc_matrix(sys.Se) 
 
@@ -582,6 +660,13 @@ module Beam2D
         return evals, evecs, freqs, modes
     end
 
+    """
+        solve_dy_eigen(sys::System,n_m::Int64=4)
+
+    Returns a function that returns a function for the eigenvalue method solution
+    that takes in a given initial condition. Takes in a `sys` object of struct `System`
+    and the number of eigenvaluees `n_m` to use.
+    """
     function solve_dy_eigen(sys::System,n_m::Int64=4)
         evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
         
