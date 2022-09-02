@@ -2,6 +2,16 @@ module Beam2D
 	using SparseArrays,Printf,LinearAlgebra,Plots #Stdlib imports
 	import IterTools, Arpack, SciPy #External imports
 
+    """
+        struct Node
+
+    Struct that holds information on which type of node, the coordinates as well (if relevant) the 
+    force/moment/movable_direction
+
+    The constructor doesnt populate the connecting_edges member since it has to be populated using
+    edges construct, which in turn needs the specific node. (This isnt circular since an edge doesnt
+    need to know which connecting edges a node has).
+    """
     mutable struct Node
         type    ::String # FREE/FIXED/FORCE/MOVABLE
         coord   ::Vector{Float64} # 2 element vector of global cooridnates.
@@ -29,6 +39,12 @@ module Beam2D
         end
     end
 
+    """
+        struct Edge
+
+    Struct that holds information on which nodes an edge is connected to and the
+    relevant finite element method information.
+    """
     struct Edge
         nodes       ::Vector{Node} # 2 element vector which nodes the edge is construed from
         grid        ::Vector{Float64} # The finite element gridpoints used in local coordinates
@@ -43,6 +59,11 @@ module Beam2D
         mu  ::Function
     end
 
+    """
+        struct Problem
+
+    Struct that holds information of the framework by nodes and edges 
+    """
     struct Problem
         nodes ::Vector{Node} # Collection of the nodes in the framework
 		edges ::Vector{Edge} # Collection of the edges in the framework
@@ -65,6 +86,11 @@ module Beam2D
         end
 	end
 
+    """
+        problem_constructor(file::String)
+
+    Constructs an instance of the Problem struct from `file`.
+    """
     function problem_constructor(file::String)
         # Read file and save initial lists
         io = open(file, "r")
@@ -75,16 +101,23 @@ module Beam2D
         fl_as_list = String.(fl_as_list) # Cast from SubString to String
         fl_as_list = striplinecomment.(fl_as_list) # Remove comments
         indices = findall(x->x in ["NODES","EDGES","TYPE","PARAMETERS"], fl_as_list) 
-        splitted = getindex.(Ref(fl_as_list), UnitRange.([1; indices .+ 1], [indices .- 1; length(fl_as_list)])) # Split into 4 lists
+        splitted = getindex.(
+             Ref(fl_as_list), 
+             UnitRange.(
+                [1; indices .+ 1],
+                [indices .- 1; length(fl_as_list)]
+            )
+        ) # Split into 4 lists
         nodes,edges,types,params = splitted[2:end] # 2:end because 1st element is empty as we split on "NODES"
 
         node_data = split.(nodes, " ")
-        nodes = [parse.(Float64, x) for x in node_data]
+        nodes = [parse.(Float64, x) for x in node_data] # Get the coordinates of the nodes to the nodes list
 
         edges = edges_setup(edges)
         
         types = get_node_type_list(types)
 
+        # Create and populate a list of Node objects
         Nodes = Vector{Node}(undef, length(nodes))
         for (node,type,i) in zip(nodes,types,1:length(nodes))
             if type[2] == "FORCE"
@@ -102,16 +135,17 @@ module Beam2D
         parameters = Dict()
         for param in params
             str,val = split(param, " ", limit=2)
-            parameters[str] = eval(Meta.parse("x -> " * val))
+            parameters[str] = eval(Meta.parse("x -> " * val)) # Evaluates the string to julia code
         end
         E = parameters["E"]; I = parameters["I"]; A = parameters["A"]; mu = parameters["mu"]
 
+        # Create and populate a list of Edge objects
         index_cnt = 1
         Edges = Vector{Edge}(undef, length(edges))
         for (i,edge) in enumerate(edges)
             L = norm(Nodes[edge[1]].coord - Nodes[edge[2]].coord)
             gridpoints = edge[3]
-            grid = collect(LinRange(0.0,L,gridpoints)) # 0 -> length of beam
+            grid = collect(LinRange(0.0,L,gridpoints)) # 0 to length of beam
 
             if edge[4] == []
                 params = [E,I,A,mu]
@@ -127,6 +161,12 @@ module Beam2D
         return Nodes,Edges
     end
     
+    """
+        get_node_type_list(types::Vector)
+
+    Returns the force+moment or movable direction, or just nothing if free/force from the
+    `types` vector.
+    """
     function get_node_type_list(types::Vector)
         force_re = r" +\[(.*?)\] *?| "
         forces = []
@@ -159,18 +199,26 @@ module Beam2D
         types
     end
 
+    """
+        edges_setup(edges_data::Vector)
+
+    Parses each element in `edges_data` to return a vector of information
+    on nodes, # of gridpointts and parameter expressions.
+    """
     function edges_setup(edges_data::Vector)
-        data = split.(edges_data, " ", limit=3)
+        data = split.(edges_data, " ", limit=3) # Create a list of each edge line, group gp and params together
         edges = []
 
+        # Regex for finding specific parameters / gridpoints
         re_params = r"params=\[(.*),(.*),(.*),(.*)\]"
         re_gp = r"gp=(\d*)"
 
         for edge_data in data
-            edge = [parse(Int, x) for x in edge_data[1:2]]
+            nodes = [parse(Int, x) for x in edge_data[1:2]]
             if length(edge_data) == 2
                 push!(edge_data,"")
             end
+            # Find the amount of gridpoints / parameter expressions specified (if at all)
             gp_match = match(re_gp, edge_data[3])
             if gp_match !== nothing
                 gridpoints = eval(Meta.parse(gp_match.captures[1]))
@@ -180,6 +228,7 @@ module Beam2D
             params_match = match(re_params, edge_data[3])
             if params_match !== nothing
                 params = []
+                # params is a list of each specific parameter function
                 for capture in params_match.captures
                     param = eval(Meta.parse("x -> " * capture))
                     push!(params, param)
@@ -187,12 +236,18 @@ module Beam2D
             else
                 params = []
             end
-            push!(edges, [edge...,gridpoints,params])
+            push!(edges, [nodes...,gridpoints,params])
         end
         return edges
     end
 
     # Copied from internet obviously
+    """
+        striplinecomment(a::String, cchars::String="#")
+
+    Strips comment `cchars` from string `a`.
+    Copied from the internet of course.
+    """
     function striplinecomment(a::String, cchars::String="#")
         b = strip(a)
         0 < length(cchars) || return b
@@ -203,10 +258,16 @@ module Beam2D
         strip(b)
     end
 
-    function C_matrix_construction(Problem)
+    """
+        constraints_construction(Problem)
+
+    Constructs the constraint matrix C and constraint forces f from `problem`
+    object of class Problem
+    """
+    function constraints_construction(problem::Problem)
         # Count size of cᵀ, denoted r
         r = 0
-        for node in Problem.nodes
+        for node in problem.nodes
             if node.type == "FIXED"
                 r += length(node.connecting_edges)*3 # 3 conditions per connecting edge
                 # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
@@ -221,13 +282,17 @@ module Beam2D
             end
         end
 
-        C = spzeros(Problem.size,r)
-        f = spzeros(Problem.size)
+        # Initialize sparse empty matrices
+        C = spzeros(problem.size,r)
+        f = spzeros(problem.size)
 
+        # Loop through all nodes and add constraints from each
         i = 1
-        for node in Problem.nodes
+        for node in problem.nodes
             if node.type == "FIXED"
-                for edge in Problem.edges[node.connecting_edges]
+                # Loop through the edges of the node and make each edge fixed
+                # in the side of the node.
+                for edge in problem.edges[node.connecting_edges]
                     j1,j2,j3 = fixed_index(edge, node)
                     
                     # v
@@ -243,7 +308,7 @@ module Beam2D
                     i += 1
                 end
             elseif node.type == "MOVABLE"
-                edge = Problem.edges[node.connecting_edges[1]]
+                edge = problem.edges[node.connecting_edges[1]]
                 phi = edge_angle(edge)
 
                 # No movement in movable direction means the dot product of movement
@@ -261,27 +326,27 @@ module Beam2D
 
                 # Even movable nodes can have more than one connecting edge 
                 # and then we need stiffness and linking again
-                i = connecting_edges_conditions!(Problem, node, C, i)
+                i = connecting_edges_conditions!(problem, node, C, i)
             else # "FORCE/FREE"
                 if node.type == "FORCE"
-                    edge = Problem.edges[node.connecting_edges[1]]
+                    edge = problem.edges[node.connecting_edges[1]]
                     angle = edge_angle(edge)
                     j1,j2 = linking_index(edge, node)
                     fx = node.force[1]; fy = node.force[2]
 
                     f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy]
                 end
-                i = connecting_edges_conditions!(Problem, node, C, i)
+                i = connecting_edges_conditions!(problem, node, C, i)
             end
         end
         C,f
     end
 
-    function connecting_edges_conditions!(Problem, node, C, i)
-        first_edge = Problem.edges[node.connecting_edges[1]]
+    function connecting_edges_conditions!(problem::Problem, node::Node, C, i::Int64)
+        first_edge = problem.edges[node.connecting_edges[1]]
         phi_1 = edge_angle(first_edge)
         
-        for rem_edge in Problem.edges[node.connecting_edges[2:end]]
+        for rem_edge in problem.edges[node.connecting_edges[2:end]]
             # Stiffness condition
             j1 = stiffness_index(first_edge, node)
             j2 = stiffness_index(rem_edge, node)
@@ -358,7 +423,7 @@ module Beam2D
 		function System(problem::Problem)
             n = sum([edge.gridlen*3 for edge in problem.edges])
 
-            C,f = C_matrix_construction(problem)
+            C,f = constraints_construction(problem)
             r = size(C)[2]
 
             Me = spzeros(n+r,n+r)
