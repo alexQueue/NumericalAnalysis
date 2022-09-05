@@ -3,7 +3,7 @@ import Plots, LinearAlgebra
 
 foeppl(xi, alpha, n)=  ifelse.(xi .> alpha, (xi .-alpha).^n, 0 )
 
-function case_1_supported_beam_(l , a, F ,EI)
+function case_1_supported_beam_(l , F, a ,EI)
 	alpha = a/l
 	beta  = (l-a)/l
 	Xi(x) = x./l
@@ -52,7 +52,7 @@ function case_9_decreasing_load(l , q0 ,EI)
 	return  x->  (q0*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
  end
 
-function case_10_free_momentum_at_a(l, a, M_0, EI)
+function case_10_free_momentum_at_a(l, M_0, a, EI)
 	q_func(x) = 0
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
@@ -70,34 +70,51 @@ a = 1
 EI_const = 1
 grid = collect(LinRange(0,L,20))
 
-#analytic solution with BCs and q function
-ana_sol, BCs, q_func = case_7_constant_load(L , q0 ,EI_const)
+# Analytic solution with BCs and q function
 """ just copy and paste to run example
-#case_1_supported_beam_(L , a, q0 ,EI_const)
-#case_7_constant_load(L , q0 ,EI_const)
-#case_8_partly_constant_load(L, q0, a,  EI_const)
-#case_9_decreasing_load(L, q0,  EI_const)
-#case_10_free_momentum_at_a(L, a, M_0, EI_const)
-
+# analytic_sol, BCs, q_func = case_7_constant_load(L , q0 ,EI_const)
+# case_1_supported_beam_(L , q0, a ,EI_const)
+# case_7_constant_load(L , q0 ,EI_const)
+# case_8_partly_constant_load(L, q0, a,  EI_const)
+# case_9_decreasing_load(L, q0,  EI_const)
+# case_10_free_momentum_at_a(L, M_0, a, EI_const)
 """
 
-#parameters 
-pars = (mu=x->1,EI=x->EI_const,q=q_func)
+cases = [case_1_supported_beam_, case_7_constant_load, case_8_partly_constant_load, case_9_decreasing_load, case_10_free_momentum_at_a]
+input = [(L,q0,a,EI_const), (L,q0,EI_const), (L,q0,a,EI_const), (L,q0,EI_const), (L,M_0,a,EI_const)]
+savefiles = ["supported_beam","constant_load","partly_constant_load","decreasing_load","free_momentum_at_a"]
 
-# build and solve
-sys  = Beam1D.System(Beam1D.Problem(pars,BCs,grid))
-sol= Beam1D.solve_st(sys)
+for i in 1:length(cases)
+    analytic_sol, Bcs, q_func = cases[i](input[i]...)
+    # Parameters 
+    pars = (mu=x->1,EI=x->EI_const,q=q_func)
 
-println("L2 norm: ", LinearAlgebra.norm(ana_sol(grid)-sol(grid)))
+    # Build and solve
+    problem = Beam1D.Problem(pars,BCs,grid)
+    sys = Beam1D.System(problem)
 
-#plot
-plt = Plots.plot(sol,sys.problem.grid,seriestype=:scatter, label = "numerical solution")
-Plots.plot!(ana_sol, label = "analytical solution")
-Plots.ylabel!("w(x)")
-Plots.xlabel!("x")
-#Plots.savefig("AnalyticalvsNumerical_momentum.pdf")
-println("Plotting. Press enter to continue.")
-Plots.gui(plt)
-readline()
+
+    u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
+    u_analytic = analytic_sol(grid)
+
+    println("L2 norm: ", LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic))
+
+    xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
+
+    # Plot
+    p = Plots.plot()
+    Plots.plot!(grid,u_analytic, label = "Analytical solution",color="blue",legend=:topleft)
+    Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),seriestype=:scatter,label="Numerical Solution",color="red")
+    Plots.ylabel!("w(x)")
+    Plots.xlabel!("x")
+    # Plots.savefig("AnalyticalvsNumerical_momentum.pdf")
+    Plots.savefig("img/"*savefiles[i]*".png")
+end
+
+# p
+# println("Plotting. Press enter to continue.")
+# Plots.gui(p)
+# readline()
+# plt
 
 #TODO: Plot all the required configurations
