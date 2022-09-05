@@ -171,4 +171,16 @@ module Beam1D
 
 		return get_sol
 	end
+
+    """
+    Evaluate a vector of functions at x to be able to only use the midpoint of
+    the xs,ys functions in a parametric curve for plotting.
+    """
+    function eval(vec::Vector{Function},x::Float64)
+        ret_vec = zeros(length(vec))
+        for i in 1:length(vec)
+            ret_vec[i] = vec[i](x)
+        end
+        return ret_vec
+    end
 end

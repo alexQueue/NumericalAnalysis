@@ -5,7 +5,7 @@
 # Project Numerical Analysis SoSe 2022
 
 module Beam2D
-	using SparseArrays,Printf,LinearAlgebra,Plots #Stdlib imports
+	using SparseArrays, Printf, LinearAlgebra, Plots #Stdlib imports
 	import IterTools, Arpack, SciPy #External imports
 
     """
@@ -68,7 +68,7 @@ module Beam2D
     """
         struct Problem
 
-    Struct that holds information of the framework by nodes and edges 
+    Struct that holds information of the framework of nodes and edges 
     """
     struct Problem
         nodes ::Vector{Node} # Collection of the nodes in the framework
