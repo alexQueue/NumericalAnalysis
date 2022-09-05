@@ -65,7 +65,7 @@ end
 
 L = 1.0
 q0 = 3
-M_0 = 9
+M0 = 9
 a = 1
 EI_const = 1
 grid = collect(LinRange(0,L,20))
@@ -80,41 +80,39 @@ grid = collect(LinRange(0,L,20))
 # case_10_free_momentum_at_a(L, M_0, a, EI_const)
 """
 
-cases = [case_1_supported_beam_, case_7_constant_load, case_8_partly_constant_load, case_9_decreasing_load, case_10_free_momentum_at_a]
-input = [(L,q0,a,EI_const), (L,q0,EI_const), (L,q0,a,EI_const), (L,q0,EI_const), (L,M_0,a,EI_const)]
-savefiles = ["supported_beam","constant_load","partly_constant_load","decreasing_load","free_momentum_at_a"]
+cases = Dict(
+    "supported_beam"        => Dict("fnc"=>case_1_supported_beam_,      "input"=>(L,q0,a,EI_const)),
+    "constant_load"         => Dict("fnc"=>case_7_constant_load,        "input"=>(L,q0,  EI_const)),
+    "partly_constant_load"  => Dict("fnc"=>case_8_partly_constant_load, "input"=>(L,q0,a,EI_const)),
+    "decreasing_load"       => Dict("fnc"=>case_9_decreasing_load,      "input"=>(L,q0,  EI_const)),
+    "free_momentum_at_a"    => Dict("fnc"=>case_10_free_momentum_at_a,  "input"=>(L,M0,a,EI_const)),
+)
 
-for i in 1:length(cases)
-    analytic_sol, Bcs, q_func = cases[i](input[i]...)
+for (key,value) in cases
+    local analytic_sol, Bcs, q_func = value["fnc"](value["input"]...)
     # Parameters 
-    pars = (mu=x->1,EI=x->EI_const,q=q_func)
+    local pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
 
     # Build and solve
-    problem = Beam1D.Problem(pars,BCs,grid)
-    sys = Beam1D.System(problem)
+    local problem = Beam1D.Problem(pars, BCs, grid)
+    local sys = Beam1D.System(problem)
 
 
-    u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
-    u_analytic = analytic_sol(grid)
+    local u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
+    local u_analytic = analytic_sol(grid)
 
-    println("L2 norm: ", LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic))
+    word_print = uppercasefirst(replace(key,"_"=>" "))
+    println(word_print * ", L2 norm: \n\t", LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic))
 
-    xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
+    local xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
 
     # Plot
-    p = Plots.plot()
+    local p = Plots.plot()
     Plots.plot!(grid,u_analytic, label = "Analytical solution",color="blue",legend=:topleft)
     Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),seriestype=:scatter,label="Numerical Solution",color="red")
     Plots.ylabel!("w(x)")
     Plots.xlabel!("x")
-    # Plots.savefig("AnalyticalvsNumerical_momentum.pdf")
-    Plots.savefig("img/"*savefiles[i]*".png")
+    Plots.savefig("img/"*key*".png")
 end
-
-# p
-# println("Plotting. Press enter to continue.")
-# Plots.gui(p)
-# readline()
-# plt
 
 #TODO: Plot all the required configurations
