@@ -52,11 +52,11 @@ function case_9_decreasing_load(l , q0 ,EI)
 	return  x->  (q0*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
  end
 
-function case_10_free_momentum_at_a(l, M_0, a, EI)
+function case_10_free_momentum_at_a(l, M0, a, EI)
 	q_func(x) = 0
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
-	            (1,'M')=>M_0,
+	            (1,'M')=>M0,
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
 	alpha = a/l
@@ -77,7 +77,7 @@ grid = collect(LinRange(0,L,20))
 # case_7_constant_load(L , q0 ,EI_const)
 # case_8_partly_constant_load(L, q0, a,  EI_const)
 # case_9_decreasing_load(L, q0,  EI_const)
-# case_10_free_momentum_at_a(L, M_0, a, EI_const)
+# case_10_free_momentum_at_a(L, M0, a, EI_const)
 """
 
 cases = Dict(
