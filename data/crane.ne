@@ -55,7 +55,7 @@ TYPE
 13 FREE
 14 FORCE [0 -1] [0]
 PARAMETERS
-E 30 
+E 15 
 I 1
 A 1
 mu 1

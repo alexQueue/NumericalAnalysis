@@ -15,5 +15,5 @@ xs,ys = Beam1D.solve_st(sys)
 #TODO: make a plot showing different loads / B.C.s
 
 p = Plots.plot()
-Plots.plot!.(xs,ys,0,1,color="black",label=false,linewidth=2)
+Plots.plot!.(xs,ys,0,1,color="black",label=false,linewidth=2,title="Static bending, Constant load")
 Plots.savefig(p,"img/static.svg")

@@ -1,4 +1,4 @@
-# Beam2D.jl
+ # Beam2D.jl
 # Authors: Alex Quinlan, Pia Callmer, Nicola Sabbadini & Henry Jacobson
 #
 # TU Berlin
@@ -266,7 +266,7 @@ module Beam2D
     end
 
     """
-        constraints_construction(Problem)
+        constraints_construction(problem::Problem)
 
     Constructs the constraint matrix C and constraint forces f from `problem`
     object of class Problem.
@@ -277,7 +277,6 @@ module Beam2D
         for node in problem.nodes
             if node.type == "FIXED"
                 r += length(node.connecting_edges)*3 # 3 conditions per connecting edge
-                # r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
             elseif node.type == "MOVABLE"
                 n_cnct_edges = length(node.connecting_edges)
                 r += 1 # one bearing condition for edge 1
@@ -384,7 +383,7 @@ module Beam2D
     """
         edge_node_order(edge, node)
 
-    Return "first" if `edge` starts at `edge`.
+    Return "first" if `edge` starts at `node`.
     """
     function edge_node_order(edge, node)
         edge.nodes[1].number == node.number ? "first" : "last"
