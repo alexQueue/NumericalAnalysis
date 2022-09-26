@@ -60,7 +60,7 @@ function case_10_free_momentum_at_a(l, M0, a, EI)
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
 	alpha = a/l
-	return x-> ((-M_0*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
+	return x-> ((-M0*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
 end
 
 L = 1.0
@@ -89,7 +89,7 @@ cases = Dict(
 )
 
 for (key,value) in cases
-    local analytic_sol, Bcs, q_func = value["fnc"](value["input"]...)
+    local analytic_sol, BCs, q_func = value["fnc"](value["input"]...)
     # Parameters 
     local pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
 
