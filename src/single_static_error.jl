@@ -3,7 +3,7 @@ import Plots, LinearAlgebra
 
 foeppl(xi, alpha, n)=  ifelse.(xi .> alpha, (xi .-alpha).^n, 0 )
 
-function case_1_supported_beam_(l , q, a ,EI)
+function case_1_supported_beam_(l , q, EI)
 	Xi(x) = x./l
 
 	BCs  = Dict((0,'H')=>0,
@@ -16,7 +16,7 @@ function case_1_supported_beam_(l , q, a ,EI)
 end
 
 function case_7_constant_load(l , q ,EI)
-	q_func(x) = q0
+	q_func(x) = q
 	Xi(x) = x./l 
 
 	BCs  = Dict((0,'H')=>0,
@@ -24,11 +24,11 @@ function case_7_constant_load(l , q ,EI)
 	            (1,'M')=>0,
 	            (1,'Q')=>0)
 
-	return  x-> (((q0*l^4)/24)* (6*Xi(x).^2 - 4*Xi(x).^3 + Xi(x).^4 ))/EI, BCs, q_func
+	return  x-> (((q*l^4)/24)* (6*Xi(x).^2 - 4*Xi(x).^3 + Xi(x).^4 ))/EI, BCs, q_func
 end
 
-function case_8_partly_constant_load(l, q0, a,  EI)
-	q_func(x) = ifelse.(x.>= a, q0, 0)
+function case_8_partly_constant_load(l, q, a,  EI)
+	q_func(x) = ifelse.(x.>= a, q, 0)
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
 	            (1,'M')=>0,
@@ -37,79 +37,71 @@ function case_8_partly_constant_load(l, q0, a,  EI)
 	Xi(x) = x./l 
 	alpha = a/l
 	beta  = (l-a) /l
-	return x-> ((q0*l^4)/24)* (foeppl(Xi(x), alpha, 4) - 4*beta*Xi(x).^3+ 6*beta*(2-beta)*Xi(x).^2)/EI, BCs, q_func
+	return x-> ((q*l^4)/24)* (foeppl(Xi(x), alpha, 4) - 4*beta*Xi(x).^3+ 6*beta*(2-beta)*Xi(x).^2)/EI, BCs, q_func
 end
 
-function case_9_decreasing_load(l , q0 ,EI)
-    q_func(x) = q0-q0*x
+function case_9_decreasing_load(l , q ,EI)
+    q_func(x) = q-q*x
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
 	            (1,'M')=>0,
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
-	return  x-> (q0*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
+	return  x-> (q*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
  end
 
-function case_10_free_momentum_at_a(l, M0, a, EI)
+function case_10_free_momentum_at_a(l, M, a, EI)
 	q_func(x) = 0
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
-	            (1,'M')=>M0,
+	            (1,'M')=>M,
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
 	alpha = a/l
-	return x-> ((-M0*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
+	return x-> ((-M*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
 end
 
-L = 1.0
-q0 = -3 # Negative y-direction
-M0 = -9
-a = 1
-EI_const = 1
-grid = collect(LinRange(0,L,20))
+function test_all_cases()
+    L = 1.0
+    q = -3 # Negative y-direction
+    M = -9
+    a = 1
+    EI_const = 1
+    grid = collect(LinRange(0,L,20))
 
-# Analytic solution with BCs and q function
-""" just copy and paste to run example
-# analytic_sol, BCs, q_func = case_7_constant_load(L , q0 ,EI_const)
-# case_1_supported_beam_(L , q0, a ,EI_const)
-# case_7_constant_load(L , q0 ,EI_const)
-# case_8_partly_constant_load(L, q0, a,  EI_const)
-# case_9_decreasing_load(L, q0,  EI_const)
-# case_10_free_momentum_at_a(L, M0, a, EI_const)
-"""
+    cases = Dict(
+        "supported_beam"        => Dict("fnc"=>case_1_supported_beam_,      "input"=>(L,q,  EI_const), "legend"=>:top),
+        "constant_load"         => Dict("fnc"=>case_7_constant_load,        "input"=>(L,q,  EI_const), "legend"=>:bottomleft),
+        "partly_constant_load"  => Dict("fnc"=>case_8_partly_constant_load, "input"=>(L,q,a,EI_const), "legend"=>:bottomleft),
+        "decreasing_load"       => Dict("fnc"=>case_9_decreasing_load,      "input"=>(L,q,  EI_const), "legend"=>:bottomleft),
+        "free_momentum_at_a"    => Dict("fnc"=>case_10_free_momentum_at_a,  "input"=>(L,M,a,EI_const), "legend"=>:topleft),
+    )
 
-cases = Dict(
-    "supported_beam"        => Dict("fnc"=>case_1_supported_beam_,      "input"=>(L,q0,a,EI_const), "legend"=>:top),
-    "constant_load"         => Dict("fnc"=>case_7_constant_load,        "input"=>(L,q0,  EI_const), "legend"=>:bottomleft),
-    "partly_constant_load"  => Dict("fnc"=>case_8_partly_constant_load, "input"=>(L,q0,a,EI_const), "legend"=>:bottomleft),
-    "decreasing_load"       => Dict("fnc"=>case_9_decreasing_load,      "input"=>(L,q0,  EI_const), "legend"=>:bottomleft),
-    "free_momentum_at_a"    => Dict("fnc"=>case_10_free_momentum_at_a,  "input"=>(L,M0,a,EI_const), "legend"=>:topleft),
-)
+    for (key,value) in cases
+        analytic_sol, BCs, q_func = value["fnc"](value["input"]...)
+        # Parameters 
+        pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
 
-for (key,value) in cases
-    local analytic_sol, BCs, q_func = value["fnc"](value["input"]...)
-    # Parameters 
-    local pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
-
-    # Build and solve
-    local problem = Beam1D.Problem(pars, BCs, grid)
-    local sys = Beam1D.System(problem)
+        # Build and solve
+        problem = Beam1D.Problem(pars, BCs, grid)
+        sys = Beam1D.System(problem)
 
 
-    local u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
-    local u_analytic = analytic_sol(grid)
+        u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
+        u_analytic = analytic_sol(grid)
 
-    word_print = uppercasefirst(replace(key,"_"=>" "))
-    println(word_print * ", L2 norm: \n\t", LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic))
+        word_print = uppercasefirst(replace(key,"_"=>" "))
+        println(word_print * ", L2 norm: \n\t", LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic))
 
-    local xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
+        xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
 
-    # Plot
-    local p = Plots.plot()
-    Plots.plot!(grid,u_analytic, label = "Analytical solution",color="blue",legend=:topleft)
-    Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),seriestype=:scatter,label="Numerical Solution",color="red")
-    Plots.plot!(legend=value["legend"])
-    Plots.ylabel!("w(x)")
-    Plots.xlabel!("x")
-    Plots.savefig("img/"*key*".png")
+        # Plot
+        p = Plots.plot()
+        Plots.plot!(grid,u_analytic, label = "Analytical solution",color="blue")
+        Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),seriestype=:scatter,label="Numerical Solution",color="red")
+        Plots.plot!(legend=value["legend"])
+        Plots.ylabel!("w(x)")
+        Plots.xlabel!("x")
+        Plots.savefig("img/"*key*".png")
+    end
 end
