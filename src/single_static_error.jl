@@ -61,6 +61,41 @@ function case_10_free_momentum_at_a(l, M, a, EI)
 	return x-> -M*l^2/2 .* (Xi(x).^2 - foeppl(Xi(x),alpha, 2)) / EI, BCs, q_func
 end
 
+function constant_vs_decreasing_load()
+    L = 1.0
+    q = -3
+    EI_const = 1
+    grid = collect(LinRange(0,L,20))
+    cases = Dict(
+        "constant_load"  =>Dict("fnc"=>case_7_constant_load,  "input"=>(L,q,EI_const),"legend"=>:bottomleft,"color"=>"blue"),
+        "decreasing_load"=>Dict("fnc"=>case_9_decreasing_load,"input"=>(L,q,EI_const),"legend"=>:bottomleft,"color"=>"red"),
+    )
+    p = Plots.plot()
+    for (key,value) in cases
+        analytic_sol, BCs, q_func = value["fnc"](value["input"]...)
+        # Parameters 
+        pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
+
+        # Build and solve
+        problem = Beam1D.Problem(pars, BCs, grid)
+        sys = Beam1D.System(problem)
+
+
+        u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
+        u_analytic = analytic_sol(grid)
+
+        xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
+
+        # Plot
+        fancy_key = uppercasefirst(replace(key,"_"=>" "))
+        Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),linewidth=2,linestyle=:dot,label=fancy_key,color=value["color"])
+        Plots.plot!(legend=value["legend"])
+        Plots.ylabel!("w(x)")
+        Plots.xlabel!("x")
+    end
+    Plots.savefig("img/constant_vs_decreasing_load.png")
+end
+
 function test_all_cases()
     L = 1.0
     q = -3 # Negative y-direction
