@@ -275,16 +275,16 @@ module Beam2D
         # Count size of cᵀ, denoted r
         r = 0
         for node in problem.nodes
+            n_cnct_edges = length(node.connecting_edges)
             if node.type == "FIXED"
-                r += length(node.connecting_edges)*3 # 3 conditions per connecting edge
+                r += n_cnct_edges*3 # 3 conditions per connecting edge
             elseif node.type == "MOVABLE"
-                n_cnct_edges = length(node.connecting_edges)
                 r += 1 # one bearing condition for edge 1
                 if n_cnct_edges >= 2
                     r += (n_cnct_edges - 1)*3
                 end
             else
-                r += (length(node.connecting_edges) - 1)*3 # 3 conditions per pair of edges
+                r += (n_cnct_edges - 1)*3 # 3 conditions per pair of edges
             end
         end
 
