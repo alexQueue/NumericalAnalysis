@@ -12,7 +12,7 @@ function case_1_supported_beam_(l , q, EI)
                 (1,'G')=>-(q*l^3/24))
 
 	q_func(x) = q
-    return x-> (q*Xi(x).^4 .- 2q*l*Xi(x).^3 .+ q*l^3*Xi(x))/(24EI), BCs, q_func
+    return x-> (q*Xi(x).^4 .- 2q*l*Xi(x).^3 .+ q*l^3*Xi(x)) / (24EI), BCs, q_func
 end
 
 function case_7_constant_load(l , q ,EI)
@@ -24,7 +24,7 @@ function case_7_constant_load(l , q ,EI)
 	            (1,'M')=>0,
 	            (1,'Q')=>0)
 
-	return  x-> (((q*l^4)/24)* (6*Xi(x).^2 - 4*Xi(x).^3 + Xi(x).^4 ))/EI, BCs, q_func
+	return  x-> (q*l^4/24 * (6*Xi(x).^2 - 4*Xi(x).^3 + Xi(x).^4)) / EI, BCs, q_func
 end
 
 function case_8_partly_constant_load(l, q, a,  EI)
@@ -37,7 +37,7 @@ function case_8_partly_constant_load(l, q, a,  EI)
 	Xi(x) = x./l 
 	alpha = a/l
 	beta  = (l-a) /l
-	return x-> ((q*l^4)/24)* (foeppl(Xi(x), alpha, 4) - 4*beta*Xi(x).^3+ 6*beta*(2-beta)*Xi(x).^2)/EI, BCs, q_func
+	return x-> q*l^4/24 * (foeppl(Xi(x), alpha, 4) - 4*beta*Xi(x).^3+ 6*beta*(2-beta)*Xi(x).^2) / EI, BCs, q_func
 end
 
 function case_9_decreasing_load(l , q ,EI)
@@ -47,7 +47,7 @@ function case_9_decreasing_load(l , q ,EI)
 	            (1,'M')=>0,
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
-	return  x-> (q*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
+	return  x-> q*l^4/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5) / EI, BCs, q_func
  end
 
 function case_10_free_momentum_at_a(l, M, a, EI)
@@ -58,7 +58,7 @@ function case_10_free_momentum_at_a(l, M, a, EI)
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
 	alpha = a/l
-	return x-> ((-M*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
+	return x-> -M*l^2/2 .* (Xi(x).^2 - foeppl(Xi(x),alpha, 2)) / EI, BCs, q_func
 end
 
 function test_all_cases()
