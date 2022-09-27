@@ -3,21 +3,19 @@ import Plots, LinearAlgebra
 
 foeppl(xi, alpha, n)=  ifelse.(xi .> alpha, (xi .-alpha).^n, 0 )
 
-function case_1_supported_beam_(l , F, a ,EI)
-	alpha = a/l
-	beta  = (l-a)/l
+function case_1_supported_beam_(l , q, a ,EI)
 	Xi(x) = x./l
 
 	BCs  = Dict((0,'H')=>0,
-	            (0,'G')=>(((F*l^2)/6)*(beta-beta^3))/EI,
+                (0,'G')=>(q*l^2/24),
 	            (1,'H')=>0,
-	            (1,'G')=>-(((F*l^2)/6)*(alpha-alpha^3))/EI)
+                (1,'G')=>-(q*l^3/24))
 
-	q_func(x) = -q0#ifelse.(x.== a, q0, 0) #TODO we need F and not q
-	return  x-> ((((F*l^3)/6).*(beta*Xi(x) .* (1-beta^2 .- Xi(x).^2) .+ foeppl(Xi(x), alpha, 3)))/EI), BCs, q_func 
+	q_func(x) = q
+    return x-> (q*Xi(x).^4 .- 2q*l*Xi(x).^3 .+ q*l^3*Xi(x))/(24EI), BCs, q_func
 end
 
-function case_7_constant_load(l , q0 ,EI)
+function case_7_constant_load(l , q ,EI)
 	q_func(x) = q0
 	Xi(x) = x./l 
 
@@ -43,29 +41,29 @@ function case_8_partly_constant_load(l, q0, a,  EI)
 end
 
 function case_9_decreasing_load(l , q0 ,EI)
-    q_func(x) = -(q0-q0*x)
+    q_func(x) = q0-q0*x
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
 	            (1,'M')=>0,
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
-	return  x-> -(q0*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
+	return  x-> (q0*l^4)/120 * (10*Xi(x).^2-10*Xi(x).^3 + 5*Xi(x).^4 -Xi(x).^5)/EI, BCs, q_func
  end
 
 function case_10_free_momentum_at_a(l, M0, a, EI)
 	q_func(x) = 0
 	BCs  = Dict((0,'H')=>0,
 	            (0,'G')=>0,
-	            (1,'M')=>-M0,
+	            (1,'M')=>M0,
 	            (1,'Q')=>0)
 	Xi(x) = x./l 
 	alpha = a/l
-	return x-> -((-M0*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
+	return x-> ((-M0*l^2)/2 .* (Xi(x).^2- foeppl(Xi(x),alpha, 2)))/EI, BCs, q_func
 end
 
 L = 1.0
-q0 = 3
-M0 = 9
+q0 = -3 # Negative y-direction
+M0 = -9
 a = 1
 EI_const = 1
 grid = collect(LinRange(0,L,20))
@@ -81,11 +79,11 @@ grid = collect(LinRange(0,L,20))
 """
 
 cases = Dict(
-    "supported_beam"        => Dict("fnc"=>case_1_supported_beam_,      "input"=>(L,q0,a,EI_const)),
-    "constant_load"         => Dict("fnc"=>case_7_constant_load,        "input"=>(L,q0,  EI_const)),
-    "partly_constant_load"  => Dict("fnc"=>case_8_partly_constant_load, "input"=>(L,q0,a,EI_const)),
-    "decreasing_load"       => Dict("fnc"=>case_9_decreasing_load,      "input"=>(L,q0,  EI_const)),
-    "free_momentum_at_a"    => Dict("fnc"=>case_10_free_momentum_at_a,  "input"=>(L,M0,a,EI_const)),
+    "supported_beam"        => Dict("fnc"=>case_1_supported_beam_,      "input"=>(L,q0,a,EI_const), "legend"=>:top),
+    "constant_load"         => Dict("fnc"=>case_7_constant_load,        "input"=>(L,q0,  EI_const), "legend"=>:bottomleft),
+    "partly_constant_load"  => Dict("fnc"=>case_8_partly_constant_load, "input"=>(L,q0,a,EI_const), "legend"=>:bottomleft),
+    "decreasing_load"       => Dict("fnc"=>case_9_decreasing_load,      "input"=>(L,q0,  EI_const), "legend"=>:bottomleft),
+    "free_momentum_at_a"    => Dict("fnc"=>case_10_free_momentum_at_a,  "input"=>(L,M0,a,EI_const), "legend"=>:topleft),
 )
 
 for (key,value) in cases
@@ -110,9 +108,8 @@ for (key,value) in cases
     local p = Plots.plot()
     Plots.plot!(grid,u_analytic, label = "Analytical solution",color="blue",legend=:topleft)
     Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),seriestype=:scatter,label="Numerical Solution",color="red")
+    Plots.plot!(legend=value["legend"])
     Plots.ylabel!("w(x)")
     Plots.xlabel!("x")
     Plots.savefig("img/"*key*".png")
 end
-
-#TODO: Plot all the required configurations
