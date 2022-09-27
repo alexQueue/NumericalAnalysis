@@ -586,8 +586,8 @@ module Beam2D
             rot_matrix = [edge_dir[1] -edge_dir[2]; edge_dir[2] edge_dir[1]]./norm(edge_dir)
 
             for element_nr in 1:edge.gridlen-1
-                pos1 = pos(0)
-                pos2 = pos(1)
+                pos1 = pos((element_nr-1)/(edge.gridlen-1))
+                pos2 = pos(element_nr/(edge.gridlen-1))
 
                 v_inds = edge.index_start + element_nr - 1 .+ (0:1)
                 w_inds = (edge.index_start + edge.gridlen) .+ (2*(element_nr-1):2*(element_nr-1)+3)
