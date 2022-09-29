@@ -93,7 +93,7 @@ function constant_vs_decreasing_load()
         Plots.ylabel!("w(x)")
         Plots.xlabel!("x")
     end
-    Plots.savefig("img/constant_vs_decreasing_load.png")
+    Plots.savefig("img/constant_vs_decreasing_load.svg")
 end
 
 function test_all_cases()
@@ -137,6 +137,6 @@ function test_all_cases()
         Plots.plot!(legend=value["legend"])
         Plots.ylabel!("w(x)")
         Plots.xlabel!("x")
-        Plots.savefig("img/"*key*".png")
+        Plots.savefig("img/"*key*".svg")
     end
 end
