@@ -37,7 +37,7 @@ EDGES
 11 12
 12 13
 13 11
-13 14 params=[1.5 1 1 1]
+13 14 gp=2 params=[5,1,1,1]
 TYPE
 1 FIXED
 2 FIXED
