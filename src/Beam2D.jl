@@ -142,7 +142,8 @@ module Beam2D
         parameters = Dict()
         for param in params
             str,val = split(param, " ", limit=2)
-            parameters[str] = eval(Meta.parse("x -> " * val)) # Evaluates the string to julia code
+            f = eval(Meta.parse("x -> " * val)) # Evaluates the string to julia code
+            parameters[str] = x -> Base.invokelatest(f,x)
         end
         E = parameters["E"]; I = parameters["I"]; A = parameters["A"]; mu = parameters["mu"]
 
@@ -163,7 +164,6 @@ module Beam2D
             Edges[i] = Edge([ Nodes[edge[1]], Nodes[edge[2]] ], grid, length(grid), L, index_cnt, params...)
             index_cnt += length(grid)*3 # v_1 -> v_n, and w_1 -> w_2n makes 3n
         end
-
 
         return Nodes,Edges
     end
@@ -237,7 +237,8 @@ module Beam2D
                 params = []
                 # params is a list of each specific parameter function
                 for capture in params_match.captures
-                    param = eval(Meta.parse("x -> " * capture))
+                    f = eval(Meta.parse("x -> " * capture))
+                    param = x -> Base.invokelatest(f,x)
                     push!(params, param)
                 end
             else
