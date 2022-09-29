@@ -1,4 +1,4 @@
- # Beam2D.jl
+# Beam2D.jl
 # Authors: Alex Quinlan, Pia Callmer, Nicola Sabbadini & Henry Jacobson
 #
 # TU Berlin
@@ -51,7 +51,7 @@ module Beam2D
     Struct that holds information on which nodes an edge is connected to and the
     relevant finite element method information.
     """
-    struct Edge
+    mutable struct Edge
         nodes       ::Vector{Node} # 2 element vector which nodes the edge is construed from
         grid        ::Vector{Float64} # The finite element gridpoints used in local coordinates
         gridlen     ::Int64 # How many elements are in the grid
