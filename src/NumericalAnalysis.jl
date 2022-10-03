@@ -1,6 +1,7 @@
+# This file needs to exist for standard package management
 module NumericalAnalysis
-    println("This file needs to exist for standard package management.")
+    export Beam1D, Beam2D
+
     include("Beam1D.jl")
     include("Beam2D.jl")
-    include("single_static_error.jl")
 end

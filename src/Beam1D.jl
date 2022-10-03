@@ -1,4 +1,4 @@
-# Beam2D.jl
+# Beam1D.jl
 # Authors: Alex Quinlan, Pia Callmer, Nicola Sabbadini & Henry Jacobson
 #
 # TU Berlin

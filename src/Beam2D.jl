@@ -5,8 +5,8 @@
 # Project Numerical Analysis SoSe 2022
 
 module Beam2D
-	using SparseArrays, Printf, LinearAlgebra, Plots #Stdlib imports
-	import IterTools, Arpack, SciPy #External imports
+	using SparseArrays, LinearAlgebra, Plots #Stdlib imports
+	import IterTools, Arpack, Printf, SciPy #External imports
 
     """
         struct Node
@@ -260,7 +260,7 @@ module Beam2D
         b = strip(a)
         0 < length(cchars) || return b
         for c in cchars
-            r = Regex(@sprintf "\\%c.*" c)
+            r = Regex(Printf.@sprintf "\\%c.*" c)
             b = replace(b, r => "")
         end
         strip(b)
