@@ -39,6 +39,7 @@ Add packages by:
 * Then enter package management mode with `]`.
 * Activate the local project with `activate .`.
 * Finally, add the package with `add <package-name>`.
+
 Add all necessary packages for development:
 * Do first three steps as above.
 * Add required packages with `instantiate`.
