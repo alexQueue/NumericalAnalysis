@@ -11,7 +11,6 @@ Run the dynamic case from the root of the directory with
 ```bash
 julia --project=. src/single_dynamic.jl
 ```
-or
 ```bash
 julia --project=. src/framework_dynamic.jl
 ```
