@@ -9,13 +9,19 @@ By Alex Quinlan, Henry Jacobson, Pia Callmer and Nicola Sabbadini
 ## Running the code
 Run the dynamic case from the root of the directory with
 ```bash
-julia --project=. src/dynamic.jl
+julia --project=. src/single_dynamic.jl
+```
+or
+```bash
+julia --project=. src/framework_dynamic.jl
 ```
 Run the static code with
 ```bash
-julia --project=. src/static.jl
+julia = --project=. src/single_static.jl
 ```
-
+```bash
+julia = --project=. src/dynamic_static.jl
+```
 ## Testing
 
 Tests are run in Github Actions but are non-blocking. You can run tests locally with
