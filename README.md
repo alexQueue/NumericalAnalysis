@@ -16,13 +16,13 @@ julia --project=. src/framework_dynamic.jl
 ```
 Run the static code with
 ```bash
-julia = --project=. src/single_static.jl
+julia --project=. src/single_static.jl
 ```
 ```bash
-julia = --project=. src/dynamic_static.jl
+julia --project=. src/dynamic_static.jl
 ```
 You can also run the code from the REPL. Add the NumericalAnalysis package by `add https://github.com/alexQueue/NumericalAnalysis` using the package manager, then
-you can `using NumericalAnalysis` use the modules `Beam1D` and `Beam2D` directly.
+you can with `using NumericalAnalysis` use the modules `Beam1D` and `Beam2D` directly.
 ## Testing
 
 Tests are run in Github Actions but are non-blocking. You can run tests locally with
