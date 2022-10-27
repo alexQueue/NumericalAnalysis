@@ -40,8 +40,8 @@ function solve_with_param_change(param::String, only_end_beam::Bool=true)
         end
     end
     if only_end_beam
-        Plots.savefig(p, "img/framework_$(param)_comparison_end.svg")
+        Plots.savefig(p, "img/framework/$(param)_comparison_end.svg")
     else
-        Plots.savefig(p, "img/framework_$(param)_comparison.svg")
+        Plots.savefig(p, "img/framework/$(param)_comparison.svg")
     end
 end

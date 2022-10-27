@@ -26,6 +26,6 @@ anim = Plots.@animate for (xs,ys) in sols
     Plots.plot!([0,1],[0,0],color="black",label=false,linewidth=2,linestyle=:dot)
 end
 
-Plots.gif(anim, "img/beam_animation.gif", fps=15)
+Plots.gif(anim, "img/single/beam_animation.gif", fps=15)
 
 #TODO: Implement other configurations

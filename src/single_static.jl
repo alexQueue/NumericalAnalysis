@@ -16,4 +16,4 @@ xs,ys = Beam1D.solve_st(sys)
 
 p = Plots.plot()
 Plots.plot!.(xs,ys,0,1,color="black",label=false,linewidth=2,title="Static bending, Constant load")
-Plots.savefig(p,"img/static.svg")
+Plots.savefig(p,"img/single/static.svg")

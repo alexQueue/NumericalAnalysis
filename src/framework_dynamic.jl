@@ -19,4 +19,4 @@ anim = Plots.@animate for (j,t) in enumerate(times)
     Plots.plot!(xy[j][1],xy[j][2],0,1,color="black",label=false,linewidth=2)
 end
 fps=15
-Plots.gif(anim, "img/framework_dynamic.gif", fps=fps)
+Plots.gif(anim, "img/framework/dynamic.gif", fps=fps)

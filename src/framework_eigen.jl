@@ -18,4 +18,4 @@ anim = Plots.@animate for t in ts
     Plots.plot!(sol(t)...,0,1,color="black",label=false,linewidth=2)
 end
 
-Plots.gif(anim, "img/framework_eigen.gif", fps=15)
+Plots.gif(anim, "img/framework/eigen.gif", fps=15)
