@@ -584,7 +584,7 @@ module Beam2D
     Returns two vectors of the x-functions and the y-functions, parametrized
     from 0 to 1.
     """
-    function u_to_Vh(problem::Problem,u::AbstractVector{Float64}) 
+    function u_to_Vh(problem::Problem, u::AbstractVector{Float64}) 
         phi(t) = [
             t^2*(2*t-3)+1,
             t*(t-1)^2,
@@ -607,9 +607,11 @@ module Beam2D
             rot_matrix = [edge_dir[1] -edge_dir[2]; edge_dir[2] edge_dir[1]]./norm(edge_dir)
 
             for element_nr in 1:edge.gridlen-1
+                # Get the positions of the start and end of the element in the global coordinate system for adding to the deformed values
                 pos1 = pos((element_nr-1)/(edge.gridlen-1))
                 pos2 = pos(element_nr/(edge.gridlen-1))
 
+                # Get the indices in the global matrix for the specific elements
                 v_inds = edge.index_start + element_nr - 1 .+ (0:1)
                 w_inds = (edge.index_start + edge.gridlen) .+ (2*(element_nr-1):2*(element_nr-1)+3)
                 (x0,x1,y0,g0,y1,g1) = u[[v_inds...,w_inds...]]
@@ -621,6 +623,7 @@ module Beam2D
                 u0_x,u0_y = rot_matrix * [1,g0] .* h
                 u1_x,u1_y = rot_matrix * [1,g1] .* h
 
+                # Determine the x and y values using Hermite polynomials
                 xs[i] = t -> dot([q0_x,u0_x,q1_x,u1_x],phi(t))
                 ys[i] = t -> dot([q0_y,u0_y,q1_y,u1_y],phi(t))
                 i += 1
@@ -636,7 +639,7 @@ module Beam2D
     Solves the problem using Newmarks method using the initial conditions `IC` for the `times` specified
     and returns a vector of the parametric curves for the whole framework for each timepoint.
     """
-    function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+    function solve_dy_Newmark(sys::System, IC::Matrix{Float64}, times::Vector{Float64})
         N = sum(sys.shape)
         @assert size(IC) == (N,3) "Wrong IC size for given system"
         @assert length(times) >= 2 "Must have an initial and final time"
@@ -671,10 +674,11 @@ module Beam2D
     Returns the first `n_m` generalized eigenvalues, eigenvectors, frequencies 
     and modes of the system matrices.
     """
-    function get_vibrations(sys::System,n_m::Int64=4)
+    function get_vibrations(sys::System, n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
         # LaPack generalized eigenvalues in julia didnt work for the 2D case for some reason
+        # So we had to fall back to SciPy's implementation.
         Me = SciPy.sparse.csc_matrix(sys.Me)
         Se = SciPy.sparse.csc_matrix(sys.Se) 
 
@@ -693,7 +697,7 @@ module Beam2D
     that takes in a given initial condition. Takes in a `sys` object of struct `System`
     and the number of eigenvaluees `n_m` to use.
     """
-    function solve_dy_eigen(sys::System,n_m::Int64=4)
+    function solve_dy_eigen(sys::System, n_m::Int64=4)
         evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
         
         function get_sol(IC::Matrix{Float64})

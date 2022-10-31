@@ -8,9 +8,17 @@ module Beam1D
 	using SparseArrays, LinearAlgebra #Stdlib imports
 	import IterTools, Arpack #External imports
 
+    """
+        struct Problem
+    
+    The parameters (mu, EI and q(x)) defined for some specific setup, as well
+    as the boundary conditions defined as a dictionary with keys being
+    (Bool,Char), defining the side and type, with the values being the prescribed
+    value there. The grid is the 1D points the beam is defined on.
+    """
 	struct Problem
-		parameters ::NamedTuple{(:mu,:EI,:q),NTuple{3,Function}}
-		BCs        ::Dict{Tuple{Bool,Char},Float64} #(side,type)=>value
+		parameters ::NamedTuple{(:mu, :EI, :q), NTuple{3,Function}}
+		BCs        ::Dict{Tuple{Bool,Char}, Float64} #(side, type)=>value
 		grid       ::Vector{Float64}
 
 		function Problem(parameters,BCs,grid)
@@ -22,6 +30,16 @@ module Beam1D
 		end
 	end
 
+    """
+        struct Problem
+
+    The shape of the matrices, as well as the Me, Se and qe
+    matrices.
+
+    Me => Mass matrix
+    Se => Stiffness matrix
+    qe => Force vector
+    """
 	struct System
 		problem ::Problem
 		shape   ::Tuple{Int,Int}
@@ -91,7 +109,17 @@ module Beam1D
 		end
 	end
 
-	function u_to_Vh(grid::Vector{Float64},u::AbstractVector{Float64}) #Convert coefficients to Vh function
+    """
+        function u_to_Vh(grid::Vector{Float64}, u::AbstractVector{Float64})
+
+    
+    Converts a solution `u` to parametric curves using the solution `u` and the
+    specified `grid`.
+
+    Returns two vectors of the x-functions and the y-functions, parametrized
+    from 0 to 1, for each element in the grid.
+    """
+	function u_to_Vh(grid::Vector{Float64}, u::AbstractVector{Float64}) #Convert coefficients to Vh function
 		@assert length(u) == 2*length(grid)+4 "Wrong number of coefficients for given grid"
 
 		phi(t) = [t^2*(2*t-3)+1,t*(t-1)^2,-t^2*(2*t-3),t^2*(t-1)]
@@ -110,11 +138,23 @@ module Beam1D
 		return xs, ys
 	end
 
+    """
+        function solve_st(sys::System)
+
+    Solves the system `sys` and returns a vector of parametrized curves.
+    """
 	function solve_st(sys::System)
 		return u_to_Vh(sys.problem.grid,(sys.Se\sys.qe))
 	end
 
-	function solve_dy_Newmark(sys::System,IC::Matrix{Float64},times::Vector{Float64})
+    """
+        function solve_dy_Newmark(sys::System, IC::Matrix{Float64}, times::Vector{Float64})
+
+    Calculates the solution of the system `sys` for specifiec initial conditions `IC`, containing
+    the values for u, u_t and u_tt, and the discretized times for which the solution should
+    be given. Returns a vector of vector of parametrized curves.
+    """
+	function solve_dy_Newmark(sys::System, IC::Matrix{Float64}, times::Vector{Float64})
 		@assert size(IC) == (sys.shape[2],3) "Wrong IC size for given system"
 		@assert length(times) >= 2 "Must have an initial and final time"
 		@assert all(diff(times) .> 0) "Times must be ascending"
@@ -141,7 +181,13 @@ module Beam1D
 		return [u_to_Vh(sys.problem.grid,u) for u in eachcol(u_0)]
 	end
 
-	function get_vibrations(sys::System,n_m::Int64=4)
+    """
+        function get_vibrations(sys::System,n_m::Int64=4)
+
+    Calculates the vibrations of `sys` using the generalized eigenvalues,
+    `n_m` determines how many eigenvalues to use.
+    """
+	function get_vibrations(sys::System, n_m::Int64=4)
 		@warn "Boundary conditions and load assumed to be 0"
 
 		evals, evecs = (-1,0)
@@ -155,6 +201,9 @@ module Beam1D
 		return evals, evecs, freqs, modes
 	end
 
+    """
+        function solve_dy_eigen(sys::System, n_m::Int64=4)
+    """
 	function solve_dy_eigen(sys::System,n_m::Int64=4)
 		evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
 		
@@ -173,10 +222,12 @@ module Beam1D
 	end
 
     """
+        function eval(vec::Vector{Function}, x::Float64)
+        
     Evaluate a vector of functions at x to be able to only use the midpoint of
     the xs,ys functions in a parametric curve for plotting.
     """
-    function eval(vec::Vector{Function},x::Float64)
+    function eval(vec::Vector{Function}, x::Float64)
         ret_vec = zeros(length(vec))
         for i in 1:length(vec)
             ret_vec[i] = vec[i](x)
