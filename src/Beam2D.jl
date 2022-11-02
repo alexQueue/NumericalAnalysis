@@ -530,7 +530,7 @@ module Beam2D
                     S = view(Se, partition, partition)
                     
                     # Loop through the local indices
-                    for (i,h,o) in zip(collect.(IterTools.partition(1:n,2j,j)),diff(edge.grid),edge.grid)
+                    for (i,h,o) in zip(collect.(IterTools.partition(1:n,2j,j)), diff(edge.grid), edge.grid)
                         M[i,i] += M_loc(h,o,Mbase_fnc)
                         S[i,i] += S_loc(h,o,Sbase_fnc,E_)
                     end

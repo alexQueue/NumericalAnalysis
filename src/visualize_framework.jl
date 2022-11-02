@@ -15,6 +15,6 @@ module Visualization
             color = colors[node.type]
             Plots.scatter!(p,[node.coord[1]],[node.coord[2]],label=false,color=color,markersize=10)
         end
-        Plots.savefig(p,file*".svg")
+        Plots.savefig(file*".svg")
     end
 end
