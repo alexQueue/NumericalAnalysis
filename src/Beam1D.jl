@@ -87,7 +87,7 @@ module Beam1D
 			q_loc(h,o) = GQ3(h,p -> phi_0(h,p)*problem.parameters.q(o+h*p))
 			
 			#Contributions for each element
-			for (i,h,o) in zip(collect.(IterTools.partition(1:n_w,4,2)),diff(problem.grid),problem.grid)
+			for (i,h,o) in zip(collect.(IterTools.partition(1:n_w,4,2)), diff(problem.grid), problem.grid)
 				M[i,i] += M_loc(h,o)
 				S[i,i] += S_loc(h,o)
 				B[i,:] += B_loc(h,o)

@@ -342,7 +342,7 @@ module Beam2D
                     fx = node.force[1]; fy = node.force[2]
 
                     # Add force in correct direction on the local coordinate system of node
-                    f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx;fy] 
+                    f[[j1,j2]] = [cos(angle) -sin(angle); sin(angle) cos(angle)]*[fx; fy] 
                 end
                 i = connecting_edges_conditions!(problem, node, C, i)
             end
