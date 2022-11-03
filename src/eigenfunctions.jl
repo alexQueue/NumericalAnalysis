@@ -56,12 +56,12 @@ import Plots
     Plots.savefig(plt, "img/single/eigenfunctions_numerical_and_analytical.svg")
    
     n = 4
-    times = collect(LinRange(0,0.1,5))
+    times = collect(LinRange(0,0.1,100))
     eigenfunc_t = [
         (x,t) -> CubicHermiteSpline.CubicHermiteSplineInterpolation(
         	sys.problem.grid,
             eigenvec[1:2:end-2, i],
-            eigenvec[2:2:end-2, i])(x) .* real(w(t, alpha[i], beta[i])[1]) for i in 1:n]
+            eigenvec[2:2:end-2, i])(x) .* real(w(t, alpha[i], beta[i])) for i in 1:n]
     # w(-,-,-) returns a vector of size n_m ( the number of eigenvalues we want to get out )
     # But we want only one since we need to index eigenvec[-, i]. Find out how to do this.
 
@@ -71,16 +71,23 @@ import Plots
          for i in 1:n
               res = res .+ eigenfunc_t[i](grid, t)
          end
-         Plots.plot(grid, res, ylim=[-1.5,1.5], xlim =[0,1], label = "w(x)")
+         Plots.plot(grid, res, ylim=[-1.5,1.5], xlim =[0,1],
+            title="Superposition of eigenvalues", label = "w(x)", linewidth=2, color="blue")
     end
 
     Plots.gif(anim, "img/single/beam_animation_eigenvals_superposition.gif", fps=15)  
 
 
-    for i in 1:n
-         anim = Plots.@animate for (j,t) in enumerate(times)
-              Plots.plot(grid, eigenfunc_t[i](grid, t) ,ylim=[-1.5,1.5], xlim =[0,1])
-         end
-         Plots.gif(anim, string("img/single/beam_animation_eigenvals_", i, ".gif"), fps=15) 
+    for i in 1:n 
+        anim = Plots.@animate for (j,t) in enumerate(times)
+            Plots.plot(grid,
+                title="Eigenvalue "*string(i),
+                eigenfunc_t[i](grid, t),
+                ylim=[-1.5,1.5], xlim =[0,1],
+                linewidth=2, color="blue", label="w_"*string(i)*"(x)")
+            end
+        Plots.gif(anim,
+            string("img/single/beam_animation_eigenvals_", i, ".gif"),
+            fps=15) 
     end
 end

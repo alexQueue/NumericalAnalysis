@@ -204,7 +204,7 @@ module Beam1D
     function get_eigenvalues_numerical(sys::System, n_m::Int64=4)
         evals, evecs, freqs, modes = get_vibrations(sys, n_m)
 
-        w(t,a,b) = a.*cos.(freqs.*t) .+ (b./freqs) .* sin.(freqs.*t)
+        w(t,a,b) = sum(a.*cos.(freqs.*t) .+ (b./freqs) .* sin.(freqs.*t))
 
         return evals, evecs, w
     end
