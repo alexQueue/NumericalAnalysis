@@ -201,6 +201,32 @@ module Beam1D
 		return evals, evecs, freqs, modes
 	end
 
+    function get_eigenvalues_numerical(sys::System, n_m::Int64=4)
+        evals, evecs, freqs, modes = get_vibrations(sys, n_m)
+
+        w(t,a,b) = a.*cos.(freqs.*t) .+ (b./freqs) .* sin.(freqs.*t)
+
+        return evals, evecs, w
+    end
+
+    function get_eigenvalues_analytical(sys::System, pars, L, n_m)
+        A = L^(-1/2)
+        x_j = [(x-0.5)*pi/L for x in 1:n_m]
+        k = [x_j[x]/L for x in 1:n_m]
+        
+        # analytic case: Assumption that EI and  mu are constant
+        freq = pars.EI(0) / pars.mu(0) .* k.^4
+        w_j(x) = [
+            x -> A .* (
+                (cosh(k[j].*x) .- cos(k[j] .*x)) 
+                .- ((cosh(x_j[j]) .- cos(x_j[j]))./(sinh(x_j[j]) .+ sin(x_j[j])) 
+                .* (sinh(k[j] .*x) .- sin(k[j] .*x)))
+            ) for j in 1:n_m
+        ]
+
+        return freq, w_j 
+    end
+
     """
         function solve_dy_eigen(sys::System, n_m::Int64=4)
     """
@@ -213,7 +239,7 @@ module Beam1D
 			as = evecs\IC[:,1]
 			bs = (evecs\IC[:,2])./freqs
 
-			sol(t) = u_to_Vh(sys.problem.grid,evecs*(as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)))
+			sol(t) = u_to_Vh(sys.problem.grid, evecs*(as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)))
 
 			return sol
 		end
