@@ -62,8 +62,6 @@ import Plots
         	sys.problem.grid,
             eigenvec[1:2:end-2, i],
             eigenvec[2:2:end-2, i])(x) .* real(w(t, alpha[i], beta[i])) for i in 1:n]
-    # w(-,-,-) returns a vector of size n_m ( the number of eigenvalues we want to get out )
-    # But we want only one since we need to index eigenvec[-, i]. Find out how to do this.
 
     anim = Plots.@animate for (j,t) in enumerate(times)
          #superposition
