@@ -67,8 +67,8 @@ function constant_vs_decreasing_load()
     EI_const = 1
     grid = collect(LinRange(0,L,20))
     cases = Dict(
-        "constant_load"  =>Dict("fnc"=>case_7_constant_load,  "input"=>(L,q,EI_const),"legend"=>:bottomleft,"color"=>"blue"),
-        "decreasing_load"=>Dict("fnc"=>case_9_decreasing_load,"input"=>(L,q,EI_const),"legend"=>:bottomleft,"color"=>"red"),
+        "constant_load"  =>Dict("fnc"=>case_7_constant_load,  "input"=>(L,q,EI_const),"legend"=>:bottomleft,"color"=>"blue","dotcolor"=>"red"),
+        "decreasing_load"=>Dict("fnc"=>case_9_decreasing_load,"input"=>(L,q,EI_const),"legend"=>:bottomleft,"color"=>"red","dotcolor"=>"blue"),
     )
     p = Plots.plot()
     for (key,value) in cases
@@ -88,7 +88,8 @@ function constant_vs_decreasing_load()
 
         # Plot
         fancy_key = uppercasefirst(replace(key,"_"=>" "))
-        Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),linewidth=2,linestyle=:dot,label=fancy_key,color=value["color"])
+        Plots.plot!(grid, u_analytic, label = "Analytical solution",color=value["dotcolor"])
+        Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),linewidth=3,label=fancy_key,color=value["color"])
         Plots.plot!(legend=value["legend"])
         Plots.ylabel!("w(x)")
         Plots.xlabel!("x")

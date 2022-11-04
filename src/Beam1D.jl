@@ -218,7 +218,7 @@ module Beam1D
         freq = pars.EI(0) / pars.mu(0) .* k.^4
         w_j(x) = [
             x -> A .* (
-                (cosh(k[j].*x) .- cos(k[j] .*x)) 
+                (cosh(k[j].*x) .- cos(k[j].*x)) 
                 .- ((cosh(x_j[j]) .- cos(x_j[j]))./(sinh(x_j[j]) .+ sin(x_j[j])) 
                 .* (sinh(k[j] .*x) .- sin(k[j] .*x)))
             ) for j in 1:n_m
