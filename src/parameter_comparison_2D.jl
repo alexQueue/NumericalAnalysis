@@ -4,7 +4,7 @@ import Plots
 param_texts = Dict(
     "E"=>"Young's modulus",
     "I"=>"Area moment of inertia",
-    "A"=>"Stiffness",
+    "A"=>"Area",
 )
 
 function solve_with_param_change(param::String, only_end_beam::Bool=true)
