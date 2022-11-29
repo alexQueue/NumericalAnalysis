@@ -14,10 +14,10 @@ module BasisFunctions
         y3 = ϕ₃.(x)
         y4 = ϕ₄.(x)
         p = plot(title="Form functions", legendfontsize=15)
-        plot!(p, x, y1, linewidth=3, color="red",label=L"\bar{\phi}_1")
-        plot!(p, x, y2, linewidth=3, color="blue",label=L"\bar{\phi}_2")
-        plot!(p, x, y3, linewidth=3, color="black",label=L"\bar{\phi}_3")
-        plot!(p, x, y4, linewidth=3, color="orange",label=L"\bar{\phi}_4")
+        plot!(p, x, y1, linewidth=3, color="blue", linestyle=:dash, label=L"\bar{\phi}_1")
+        plot!(p, x, y2, linewidth=3, color="red", linestyle=:dash, label=L"\bar{\phi}_2")
+        plot!(p, x, y3, linewidth=3, color="blue", linestyle=:dot, label=L"\bar{\phi}_3")
+        plot!(p, x, y4, linewidth=3, color="red", linestyle=:dot, label=L"\bar{\phi}_4")
         savefig(p, "img/single/form_functions.svg")
     end
 
