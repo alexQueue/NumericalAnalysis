@@ -1,7 +1,8 @@
 include("Beam1D.jl")
 import Plots
+import Printf
 
-#Initial conditions
+# Initial conditions
 pars = (mu=x->1,EI=x->1,q=x->-10)
 BCs  = Dict((0,'H')=>0,
             (0,'G')=>0,
@@ -14,16 +15,17 @@ sys  = Beam1D.System(prob)
 
 IC   = [sys.Se\sys.qe zeros(sys.shape[2],2)]
 
-#Change load & solve dynamically
+# Change load & solve dynamically
 prob.parameters.q(x) = 0
 sys = Beam1D.System(prob)
 
 times = collect(LinRange(0,10,50))
 sols  = Beam1D.solve_dy_Newmark(sys,IC,times)
 
-anim = Plots.@animate for (xs,ys) in sols
+anim = Plots.@animate for (i,(xs,ys)) in enumerate(sols)
     Plots.plot(xs,ys,0,1,ylim=[-1.5,1.5],color="black",label=false,linewidth=2 )
     Plots.plot!([0,1],[0,0],color="black",label=false,linewidth=2,linestyle=:dot)
+    Plots.savefig("presentation/gifs/beam/frame"*Printf.@sprintf("%i", i))
 end
 
 Plots.gif(anim, "img/single/beam_animation.gif", fps=15)
