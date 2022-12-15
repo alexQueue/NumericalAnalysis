@@ -677,7 +677,7 @@ module Beam2D
     function get_vibrations(sys::System, n_m::Int64=4)
         @warn "Boundary conditions and load assumed to be 0"
 
-        # LaPack generalized eigenvalues in julia didnt work for the 2D case for some reason
+        # Arpack generalized eigenvalues in julia didnt work for the 2D case for some reason
         # So we had to fall back to SciPy's implementation.
         Me = SciPy.sparse.csc_matrix(sys.Me)
         Se = SciPy.sparse.csc_matrix(sys.Se) 
