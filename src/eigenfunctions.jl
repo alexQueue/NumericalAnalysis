@@ -36,7 +36,6 @@ using LaTeXStrings
     p3 = Plots.plot((eigenfunc_ana(grid))[3], xlim = [0, 1], title = L"w_3", color="blue", linewidth=2)
     p4 = Plots.plot((eigenfunc_ana(grid))[4], xlim = [0, 1], title = L"w_4", color="blue", linewidth=2)
     plt = Plots.plot(p1, p2, p3, p4, layout= (2, 2), legend= false)
-    Plots.plot!(plt, plot_title="Analytical eigenfunctions")
     Plots.savefig(plt, "img/single/eigenfunctions_analytical.svg")
 
     #Plot numerical eigenfunctions
@@ -49,7 +48,6 @@ using LaTeXStrings
     pp4 = Plots.plot(
         Beam1D.u_to_Vh(grid, eigenvec[:, 4])..., 0, 1, title = L"w_4", yticks=LinRange(-0.0006,0.0006,3), color="blue", linewidth=2)
     plt = Plots.plot(pp1, pp2, pp3, pp4, layout= (2, 2), legend= false)
-    Plots.plot!(plt, plot_title="Numerical eigenfunctions")
     Plots.savefig(plt, "img/single/eigenfunctions_numerical.svg")
 
     plt = Plots.plot(p1, pp1, p2, pp2, p3, pp3,  p4, pp4, layout=(4,2), legend=false)
