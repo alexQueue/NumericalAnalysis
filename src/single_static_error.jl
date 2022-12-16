@@ -1,5 +1,5 @@
 include("Beam1D.jl")
-import Plots, LinearAlgebra
+import Plots, LinearAlgebra, LaTeXStrings
 
 foeppl(xi, alpha, n)=  ifelse.(xi .> alpha, (xi .-alpha).^n, 0 )
 
@@ -140,4 +140,48 @@ function test_all_cases()
         Plots.xlabel!("x")
         Plots.savefig("img/single/"*key*".svg")
     end
+end
+
+function convergence_testing()
+    L = 1.0
+    q = -3
+    EI_const = 1
+    resolutions = Int.(floor.(10 .^(LinRange(log10(3),log10(3e3),30))))
+    # resolutions = [2,5,10,30,50,100,150,300,500,1000,2000]
+    errors = zeros(length(resolutions))
+
+    analytical_sol, BCs, q_func = case_1_supported_beam_(L,q, EI_const)
+    pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
+
+    interpolation_points = 5
+    hi = L / interpolation_points
+    for (j,resolution) in enumerate(resolutions)
+        h = L / resolution
+        grid = collect(LinRange(0,L,resolution+1))
+
+        problem = Beam1D.Problem(pars, BCs, grid)
+        sys = Beam1D.System(problem)
+        u_numeric = sys.Se\sys.qe
+        u_analytic = analytical_sol(grid)
+
+        xs,ys = Beam1D.u_to_Vh(grid, u_numeric)
+
+        Y_anl = zeros(interpolation_points*(resolution))
+        Y_num = zeros(interpolation_points*(resolution))
+        for el in 1:resolution
+            for point in 1:interpolation_points
+                # display((el-1)*h+(point-1)*h*hi)
+                Y_num[(el-1)*interpolation_points+point] = ys[el](point*hi)
+                Y_anl[(el-1)*interpolation_points+point] = analytical_sol((el-1)*h+(point-1)*h*hi)
+            end
+        end
+        errors[j] = LinearAlgebra.norm(Y_num - Y_anl)
+    end
+
+    p = Plots.plot()
+    Plots.plot!(resolutions, errors, xaxis=:log, yaxis=:log, seriestype=:scatter, 
+        markersize=6, color="blue",label=false)
+    Plots.ylabel!(LaTeXStrings.L"\vert\vert{u_{\textrm{numerical}} - u_{\textrm{analytical}}}\vert\vert")
+    Plots.xlabel!("# of elements")
+    Plots.savefig("img/single/convergence.svg")
 end
