@@ -147,7 +147,6 @@ function convergence_testing()
     q = -3
     EI_const = 1
     resolutions = Int.(floor.(10 .^(LinRange(log10(3),log10(3e3),30))))
-    # resolutions = [2,5,10,30,50,100,150,300,500,1000,2000]
     errors = zeros(length(resolutions))
 
     analytical_sol, BCs, q_func = case_1_supported_beam_(L,q, EI_const)
