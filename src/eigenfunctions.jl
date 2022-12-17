@@ -1,10 +1,11 @@
 include("Beam1D.jl")
+include("Beam2D.jl")
 import CubicHermiteSpline
 import LinearAlgebra
 import Plots
 using LaTeXStrings
 
-    function plot_eigenfunctions()
+function plot_eigenfunctions()
     #Initial condition
     pars = (mu=x->1,EI=x->1,q=x->-1)
     BCs  = Dict((0,'H')=>0,

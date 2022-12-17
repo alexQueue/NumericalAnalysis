@@ -169,7 +169,6 @@ function convergence_testing()
         Y_num = zeros(interpolation_points*(resolution))
         for el in 1:resolution
             for point in 1:interpolation_points
-                # display((el-1)*h+(point-1)*h*hi)
                 Y_num[(el-1)*interpolation_points+point] = ys[el](point*hi)
                 Y_anl[(el-1)*interpolation_points+point] = analytical_sol((el-1)*h+(point-1)*h*hi)
             end

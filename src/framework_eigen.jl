@@ -8,14 +8,22 @@ get_sol = Beam2D.solve_dy_eigen(sys)
 u = sys.Se\sys.qe
 
 IC = [u zeros(size(u)...,2)]
-sol = get_sol(IC)
-ts = collect(LinRange(0,100,100,))
+sol_eigen = get_sol(IC)
+ts = collect(LinRange(0,100,500,))
+
+sys.qe[:] .= 0
+xy = Beam2D.solve_dy_Newmark(sys,IC,ts)
 
 undeformed = Beam2D.u_to_Vh(sys.problem,zeros(size(u)...))
 
-anim = Plots.@animate for t in ts
-    Plots.plot(undeformed[1],undeformed[2],0,1,color="black",label=false,linewidth=2,linestyle=:dot)
-    Plots.plot!(sol(t)...,0,1,color="black",label=false,linewidth=2)
+newmark_label = hcat("Newmark",fill("",1,99))
+eigen_label = hcat("Eigen",fill("",1,99))
+anim = Plots.@animate for (j,t) in enumerate(ts)
+    Plots.plot(undeformed[1],undeformed[2],0,1,color="black",label=false,legend=:topright,
+        linewidth=2,linestyle=:dot)
+    Plots.plot!(xy[j][1],xy[j][2],0,1,color="gray",label=newmark_label,linewidth=2,linestyle=:dash)
+    Plots.plot!(sol_eigen(t)...,0,1,color="black",label=eigen_label,linewidth=2,linestyle=:dash)
+    Plots.plot!(xlims=[2,6],ylims=[2,7])
 end
 
 Plots.gif(anim, "img/framework/eigen.gif", fps=15)
