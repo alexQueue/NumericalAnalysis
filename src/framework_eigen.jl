@@ -1,5 +1,6 @@
 include("Beam2D.jl")
 import Plots
+using Printf
 
 problem = Beam2D.Problem("data/crane.ne")
 sys = Beam2D.System(problem)
@@ -24,6 +25,7 @@ anim = Plots.@animate for (j,t) in enumerate(ts)
     Plots.plot!(xy[j][1],xy[j][2],0,1,color="gray",label=newmark_label,linewidth=2,linestyle=:dash)
     Plots.plot!(sol_eigen(t)...,0,1,color="black",label=eigen_label,linewidth=2,linestyle=:dash)
     Plots.plot!(xlims=[2,6],ylims=[2,7])
+    Plots.savefig("presentation/gifs/eigen"*@sprintf("/frame%i.png", j))
 end
 
 Plots.gif(anim, "img/framework/eigen.gif", fps=15)
