@@ -55,7 +55,7 @@ module Beam2D
         nodes       ::Vector{Node} # 2 element vector which nodes the edge is construed from
         grid        ::Vector{Float64} # The finite element gridpoints used in local coordinates
         gridlen     ::Int64 # How many elements are in the grid
-        len         ::Float64 # The length of the node
+        len         ::Float64 # The length of the edge
         index_start ::Int64 # Which index in the whole framework the edge's start is
 
         # Functions of x and t for the parameters
@@ -605,6 +605,7 @@ module Beam2D
             pos(t) = edge_start + t*edge_dir # Function to get the position of the start finite element on the edge
 
             rot_matrix = [edge_dir[1] -edge_dir[2]; edge_dir[2] edge_dir[1]]./norm(edge_dir)
+            h = edge.len / edge.gridlen # Constant length elements for each edge
 
             for element_nr in 1:edge.gridlen-1
                 # Get the positions of the start and end of the element in the global coordinate system for adding to the deformed values
@@ -615,8 +616,6 @@ module Beam2D
                 v_inds = edge.index_start + element_nr - 1 .+ (0:1)
                 w_inds = (edge.index_start + edge.gridlen) .+ (2*(element_nr-1):2*(element_nr-1)+3)
                 (x0,x1,y0,g0,y1,g1) = u[[v_inds...,w_inds...]]
-
-                h = norm(edge_dir) + x0 + x1
 
                 q0_x,q0_y = pos1 .+ rot_matrix * [x0,y0]
                 q1_x,q1_y = pos2 .+ rot_matrix * [x1,y1]
