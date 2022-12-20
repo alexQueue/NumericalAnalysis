@@ -17,6 +17,13 @@ xy = Beam2D.solve_dy_Newmark(sys,IC,ts)
 
 undeformed = Beam2D.u_to_Vh(sys.problem,zeros(size(u)...))
 
+p = Plots.plot(undeformed[1],undeformed[2],0,1,color="black",label=false,legend=:topright,
+    linewidth=2,linestyle=:dot)
+Plots.plot!(p,xy[1][1],xy[1][2],0,1,color="gray",label="Newmark",linewidth=2,linestyle=:dash)
+Plots.plot!(p,sol_eigen(0)...,0,1,color="black",label="Eigen",linewidth=2,linestyle=:dash)
+Plots.plot!(p,xlims=[2,6],ylims=[2,7])
+Plots.savefig(p,"img/framework/eigen.svg")
+
 newmark_label = hcat("Newmark",fill("",1,99))
 eigen_label = hcat("Eigen",fill("",1,99))
 anim = Plots.@animate for (j,t) in enumerate(ts)

@@ -89,7 +89,6 @@ function constant_vs_decreasing_load()
 
         # Plot
         fancy_key = uppercasefirst(replace(key,"_"=>" "))
-        Plots.plot!(grid, u_analytic, label = "Analytical solution",color=value["dotcolor"])
         Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),linewidth=3,label=fancy_key,color=value["color"])
         Plots.plot!(legend=value["legend"])
         Plots.ylabel!("w(x)")
@@ -132,9 +131,12 @@ function test_all_cases()
         xs,ys = Beam1D.u_to_Vh(grid,u_numeric)
 
         # Plot
+        points = [0,1]
+        legend = hcat("Numerical solution",fill("",1,length(points)-1))
         p = Plots.plot()
         Plots.plot!(grid,u_analytic, label = "Analytical solution",color="blue")
-        Plots.plot!(Beam1D.eval(xs,0.5),Beam1D.eval(ys,0.5),seriestype=:scatter,label="Numerical Solution",color="red")
+        Plots.plot!(Beam1D.eval(xs,points),Beam1D.eval(ys,points),seriestype=:scatter,label=legend,
+            color="red")
         Plots.plot!(legend=value["legend"])
         Plots.ylabel!("w(x)")
         Plots.xlabel!("x")
@@ -180,8 +182,8 @@ function convergence_testing()
     p = Plots.plot()
     Plots.plot!(resolutions, errors, xaxis=:log, yaxis=:log, seriestype=:scatter, 
         markersize=4, color="blue",label=false,
-        title=L"Error wrt. $L^2$-norm with 100 interpolation points")
-    Plots.ylabel!(L"\vert\vert{u_{\textrm{numerical}} - u_{\textrm{analytical}}}\vert\vert")
+        title=L"Error wrt. $L_2$-norm with 100 interpolation points")
+    Plots.ylabel!(L"\vert\vert{w_{\textrm{numerical}} - w_{\textrm{analytical}}}\vert\vert")
     Plots.xlabel!("# of elements")
     Plots.savefig("img/single/convergence.svg")
     Plots.savefig("report/overleaf/plots/convergence.svg")
