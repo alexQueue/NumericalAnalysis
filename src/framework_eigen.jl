@@ -5,7 +5,7 @@ using Printf
 problem = Beam2D.Problem("data/crane.ne")
 sys = Beam2D.System(problem)
 
-get_sol = Beam2D.solve_dy_eigen(sys)
+get_sol = Beam2D.solve_dy_eigen(sys, 20)
 u = sys.Se\sys.qe
 
 IC = [u zeros(size(u)...,2)]
