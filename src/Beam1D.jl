@@ -209,6 +209,11 @@ module Beam1D
         return evals, evecs, w
     end
 
+    """
+        function get_eigenvalues_analytical(sys::System, pars, L, n_m)
+
+    Only for cantilever beam
+    """
     function get_eigenvalues_analytical(sys::System, pars, L, n_m)
         A = L^(-1/2)
         x_j = [(x-0.5)*pi/L for x in 1:n_m]
