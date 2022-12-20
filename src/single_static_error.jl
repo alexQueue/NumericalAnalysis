@@ -167,16 +167,7 @@ function convergence_testing()
 
         xs,ys = Beam1D.u_to_Vh(grid, u_numeric)
 
-        # errors[j] = LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic)
-        Y_anl = zeros(interpolation_points*(resolution))
-        Y_num = zeros(interpolation_points*(resolution))
-        for el in 1:resolution
-            for point in 1:interpolation_points
-                Y_num[(el-1)*interpolation_points+point] = ys[el](point*hi)
-                Y_anl[(el-1)*interpolation_points+point] = analytical_sol((el-1)*h+(point-1)*h*hi)
-            end
-        end
-        errors[j] = LinearAlgebra.norm(Y_num - Y_anl)
+        errors[j] = LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic)
     end
 
     p = Plots.plot()
