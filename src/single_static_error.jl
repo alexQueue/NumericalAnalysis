@@ -1,5 +1,6 @@
 include("Beam1D.jl")
-import Plots, LinearAlgebra, LaTeXStrings
+import Plots, LinearAlgebra
+using LaTeXStrings
 
 foeppl(xi, alpha, n)=  ifelse.(xi .> alpha, (xi .-alpha).^n, 0 )
 
@@ -122,7 +123,6 @@ function test_all_cases()
         problem = Beam1D.Problem(pars, BCs, grid)
         sys = Beam1D.System(problem)
 
-
         u_numeric = sys.Se\sys.qe # 4 boundary conditions at end
         u_analytic = analytic_sol(grid)
 
@@ -146,13 +146,13 @@ function convergence_testing()
     L = 1.0
     q = -3
     EI_const = 1
-    resolutions = Int.(floor.(10 .^(LinRange(log10(3),log10(3e3),30))))
+    resolutions = Int.(floor.(10 .^(LinRange(log10(3),log10(1e3),50))))
     errors = zeros(length(resolutions))
 
     analytical_sol, BCs, q_func = case_1_supported_beam_(L,q, EI_const)
     pars = (mu=x->1 ,EI=x->EI_const, q=q_func)
 
-    interpolation_points = 5
+    interpolation_points = 100
     hi = L / interpolation_points
     for (j,resolution) in enumerate(resolutions)
         h = L / resolution
@@ -165,23 +165,25 @@ function convergence_testing()
 
         xs,ys = Beam1D.u_to_Vh(grid, u_numeric)
 
-        errors[j] = LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic)
-        # Y_anl = zeros(interpolation_points*(resolution))
-        # Y_num = zeros(interpolation_points*(resolution))
-        # for el in 1:resolution
-        #     for point in 1:interpolation_points
-        #         Y_num[(el-1)*interpolation_points+point] = ys[el](point*hi)
-        #         Y_anl[(el-1)*interpolation_points+point] = analytical_sol((el-1)*h+(point-1)*h*hi)
-        #     end
-        # end
-        # errors[j] = LinearAlgebra.norm(Y_num - Y_anl)
+        # errors[j] = LinearAlgebra.norm(u_numeric[1:2:end-4]- u_analytic)
+        Y_anl = zeros(interpolation_points*(resolution))
+        Y_num = zeros(interpolation_points*(resolution))
+        for el in 1:resolution
+            for point in 1:interpolation_points
+                Y_num[(el-1)*interpolation_points+point] = ys[el](point*hi)
+                Y_anl[(el-1)*interpolation_points+point] = analytical_sol((el-1)*h+(point-1)*h*hi)
+            end
+        end
+        errors[j] = LinearAlgebra.norm(Y_num - Y_anl)
     end
 
     p = Plots.plot()
     Plots.plot!(resolutions, errors, xaxis=:log, yaxis=:log, seriestype=:scatter, 
-        markersize=6, color="blue",label=false)
-    Plots.ylabel!(LaTeXStrings.L"\vert\vert{u_{\textrm{numerical}} - u_{\textrm{analytical}}}\vert\vert")
+        markersize=4, color="blue",label=false,
+        title=L"Error wrt. $L^2$-norm with 100 interpolation points")
+    Plots.ylabel!(L"\vert\vert{u_{\textrm{numerical}} - u_{\textrm{analytical}}}\vert\vert")
     Plots.xlabel!("# of elements")
     Plots.savefig("img/single/convergence.svg")
+    Plots.savefig("report/overleaf/plots/convergence.svg")
     Plots.savefig("presentation/plots/convergence.svg")
 end
