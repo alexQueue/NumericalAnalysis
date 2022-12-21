@@ -234,6 +234,8 @@ module Beam1D
 
     """
         function solve_dy_eigen(sys::System, n_m::Int64=4)
+		Solves the dynamical eigenvalue problem numerically with given system. 
+		Returns a function, which returns the superposition of the waves at a given time t. 
     """
 	function solve_dy_eigen(sys::System,n_m::Int64=4)
 		evals, evecs, freqs, modes = get_vibrations(sys,n_m) 
@@ -245,7 +247,6 @@ module Beam1D
 			bs = (evecs\IC[:,2])./freqs
 
 			sol(t) = u_to_Vh(sys.problem.grid, evecs*(as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)))
-
 			return sol
 		end
 
@@ -272,4 +273,74 @@ module Beam1D
         end
         return ret_vec
     end
+	"""
+	function get_eigen_cantilever(system::Beam1D.System, pars::NamedTuple, L::Float64, n::Int64 )
+	
+	Returns analytical solution of cantilever beam for given system and grid points with frequency and descrete eigenfunction.
+	The eigenfunction is evaluated at the grid points and named eigenvec.
+	"""
+	function get_eigen_cantilever(system::Beam1D.System, pars, L, n=4)
+		A = L^(-1/2)
+		x_j = [(x-0.5)*pi/L for x in 1:n]
+		k = [x_j[x]/L for x in 1:n ]
+	
+		# analytic case: Assumption that EI and mu are constant
+		freq = (pars.EI(0)./pars.mu(0)) .* k.^4
+		w_j(x) =  [  
+			A .* (
+				(cosh.(k[j].*x) .- cos.(k[j] .*x)) 
+				.- ((cosh.(x_j[j]) .- cos.(x_j[j]))./(sinh.(x_j[j]) .+ sin.(x_j[j])) 
+				.* (sinh.(k[j] .*x) .- sin.(k[j] .*x)))
+				) for j in 1:n
+			]
+		
+		#discretize by evaluating at grid points 
+		eigenvec = w_j(system.problem.grid)
+		eigenvec = mapreduce(permutedims, vcat, eigenvec)
+		return freq, eigenvec
+	end
+	"""
+	function get_eigen_simply_supported_beam(system::Beam1D.System, pars::NamedTuple, L::Float64, n::Int64 )
+	
+	Returns analytical solution of simply supported beam for given system and grid points with frequency and descrete eigenfunction.
+	The eigenfunction is evaluated at the grid points and named eigenvec.
+	"""
+	function get_eigen_simply_supported_beam(system::Beam1D.System, pars, L, n=4)
+		D = L^(-1/2)
+		k = [(x*pi)/L for x in 1:n ]
+	
+		# analytic case: Assumption that EI and mu are constant
+		freq = (pars.EI(0)./pars.mu(0)) .* k.^4
+		w_j(x) =  [  
+			D .* (sin.(k[j].*x)
+				) for j in 1:n
+			]
+		
+		#discretize by evaluating at grid points 
+		eigenvec = w_j(system.problem.grid)
+		eigenvec = mapreduce(permutedims, vcat, eigenvec)
+		return freq, eigenvec
+	end
+
+	"""
+	Using the eigenvalue method to create a superposition of standing waves to solve dynamical problem.
+	Returns a function depending on time t, which is the dynamical solution for given system with given frequencies.
+	"""
+	function solve_dy_eigen_analytical(sys::Beam1D.System, freqs, evecs)
+	
+		function get_sol(IC::Matrix{Float64})
+			@assert size(IC) == (sys.shape[2],2) "Wrong IC size for given system"
+			
+			#calculate alpha and beta parameters
+			as = evecs'\IC[1:2:end-4,1]
+			bs = (evecs'\IC[2:2:end-4,2])./freqs
+	
+			sol(t) = evecs'*(as.*cos.(freqs.*t).+bs.*sin.(freqs.*t)) 
+	
+			return sol
+		end
+		return get_sol
+	end
+
+
 end
