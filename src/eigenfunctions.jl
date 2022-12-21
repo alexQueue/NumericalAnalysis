@@ -2,6 +2,7 @@ include("Beam1D.jl")
 import CubicHermiteSpline
 import LinearAlgebra
 import Plots
+using Printf
 using LaTeXStrings
 
     function plot_eigenfunctions()
@@ -126,9 +127,10 @@ using LaTeXStrings
                 #ylim = [-0.25, 0.25], xlim =[0,1],
                 ylim=[min_y-0.3*abs(min_y),max_y+0.3*abs(max_y)],
                 linewidth=2, color="blue", label=latexstring("w_$i (x)"))
-                Plots.ylabel!(latexstring("w_$i (x)"))
-                Plots.xlabel!(L"x")
-            end
+            Plots.ylabel!(latexstring("w_$i (x)"))
+            Plots.xlabel!(L"x")
+            Plots.savefig(@sprintf("presentation/gifs/eigenfuncs%i/frame%i", i,j))
+        end
         Plots.gif(anim,
             string("img/single/beam_animation_eigenvals_", i, ".gif"),
             fps=15
