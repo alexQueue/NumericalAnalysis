@@ -75,7 +75,7 @@ anim = Plots.@animate for (j, t) in enumerate(ts)
     Plots.plot([0,1],[0,0],color="black",label=false,linewidth=2,linestyle=:dot)
     Plots.plot!(sol_num(t)...,0,1,ylim=[-2,2],color="black",label=false,linewidth=2)
     #Plots.plot!(grid,sol_ana(t),ylim=[-2,2],color="grey",label=false,linewidth=2)
-Plots.savefig("presentation/gifs/superpos"*@sprintf("/frame%i.png", j))
+    Plots.savefig("presentation/gifs/superpos"*@sprintf("/frame%i.png", j))
 end
 
 Plots.gif(anim, "img/single/beam_animation_eigen_num_ana.gif", fps=15)
